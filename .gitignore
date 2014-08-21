@@ -1,4 +1,4 @@
-src/main/generated/
 .idea/
+generated/
 target/
 fcrepo-oaiprovider.iml

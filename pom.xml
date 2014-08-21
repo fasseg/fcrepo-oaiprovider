@@ -85,7 +85,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <outputDirectory>src/main/generated</outputDirectory>
+                    <outputDirectory>target/generated-sources</outputDirectory>
                     <schemaDirectory>src/main/resources/schema</schemaDirectory>
                 </configuration>
             </plugin>
