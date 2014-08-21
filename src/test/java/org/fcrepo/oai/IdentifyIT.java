@@ -33,7 +33,7 @@ public class IdentifyIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testIdentify() throws Exception {
-        HttpGet get = new HttpGet(this.serverAddress + "/oai?verb=Identify");
+        HttpGet get = new HttpGet(serverAddress + "/oai?verb=Identify");
         HttpResponse resp = this.client.execute(get);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
@@ -41,5 +41,7 @@ public class IdentifyIT extends AbstractOAIProviderIT {
         assertNotNull(oaipmh.getIdentify());
         assertNotNull(oaipmh.getRequest());
         assertEquals("Identify", oaipmh.getRequest().getVerb().value());
+        assertEquals("Fedora 4 Test Instance", oaipmh.getIdentify().getRepositoryName());
+        assertEquals(serverAddress, oaipmh.getIdentify().getBaseURL());
     }
 }
