@@ -17,14 +17,22 @@
 package org.fcrepo.oai;
 
 import static java.lang.Integer.parseInt;
+import static org.junit.Assert.assertEquals;
+
+import java.io.IOException;
+import java.io.StringWriter;
+
+import javax.annotation.PostConstruct;
+import javax.jcr.RepositoryException;
+import javax.xml.bind.*;
+import javax.xml.namespace.QName;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.junit.runner.RunWith;
 import org.openarchives.oai._2.IdentifyType;
 import org.openarchives.oai._2.OAIPMHtype;
@@ -33,12 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-
-import javax.annotation.PostConstruct;
-import javax.jcr.RepositoryException;
-import javax.xml.bind.*;
-import javax.xml.namespace.QName;
-import java.io.StringWriter;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("/test-container.xml")
@@ -51,6 +53,7 @@ public abstract class AbstractOAIProviderIT {
     protected final ObjectFactory oaiFactory = new ObjectFactory();
 
     protected final Unmarshaller unmarshaller;
+
     protected final Marshaller marshaller;
 
     protected static final String serverAddress = "http://localhost:" +
@@ -58,6 +61,9 @@ public abstract class AbstractOAIProviderIT {
 
     @PostConstruct
     public void createDefaultIdentifyResponse() throws Exception {
+        if (defaultIdentityResponseExists()) {
+            return;
+        }
         IdentifyType id = oaiFactory.createIdentifyType();
         id.setRepositoryName("Fedora 4 Test Instance");
         id.setBaseURL(serverAddress);
@@ -74,7 +80,19 @@ public abstract class AbstractOAIProviderIT {
         }
     }
 
-    public AbstractOAIProviderIT(){
+    protected boolean defaultIdentityResponseExists() throws IOException {
+        HttpGet get = null;
+        try {
+            get = new HttpGet(serverAddress + "/oai/identify/fcr:content");
+            HttpResponse resp = this.client.execute(get);
+            return resp.getStatusLine().getStatusCode() == 200;
+        }
+        finally {
+            get.releaseConnection();
+        }
+    }
+
+    public AbstractOAIProviderIT() {
         this.logger = LoggerFactory.getLogger(this.getClass());
         try {
             this.marshaller = JAXBContext.newInstance(IdentifyType.class).createMarshaller();
@@ -82,5 +100,18 @@ public abstract class AbstractOAIProviderIT {
         } catch (JAXBException e) {
             throw new RuntimeException("Unable to create JAX-B context");
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    public OAIPMHtype getOAIPMH(String verb) throws RepositoryException {
+        HttpGet get = new HttpGet(serverAddress + "/oai?verb=" + verb);
+        try {
+            HttpResponse resp = this.client.execute(get);
+            assertEquals(200, resp.getStatusLine().getStatusCode());
+            return ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        }catch(IOException | JAXBException e) {
+            throw new RepositoryException(e);
+        }
+
     }
 }

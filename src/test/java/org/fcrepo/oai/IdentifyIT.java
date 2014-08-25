@@ -19,28 +19,20 @@ package org.fcrepo.oai;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.util.EntityUtils;
 import org.junit.Test;
 import org.openarchives.oai._2.OAIPMHtype;
-
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
+import org.openarchives.oai._2.VerbType;
 
 public class IdentifyIT extends AbstractOAIProviderIT {
 
     @Test
     @SuppressWarnings("unchecked")
     public void testIdentify() throws Exception {
-        HttpGet get = new HttpGet(serverAddress + "/oai?verb=Identify");
-        HttpResponse resp = this.client.execute(get);
-        assertEquals(200, resp.getStatusLine().getStatusCode());
-        OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        OAIPMHtype oaipmh = getOAIPMH(VerbType.IDENTIFY.value());
         assertEquals(0, oaipmh.getError().size());
         assertNotNull(oaipmh.getIdentify());
         assertNotNull(oaipmh.getRequest());
-        assertEquals("Identify", oaipmh.getRequest().getVerb().value());
+        assertEquals(VerbType.IDENTIFY.value(), oaipmh.getRequest().getVerb().value());
         assertEquals("Fedora 4 Test Instance", oaipmh.getIdentify().getRepositoryName());
         assertEquals(serverAddress, oaipmh.getIdentify().getBaseURL());
     }

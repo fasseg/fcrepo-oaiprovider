@@ -17,6 +17,7 @@
 package org.fcrepo.oai.http;
 
 import static org.openarchives.oai._2.VerbType.IDENTIFY;
+import static org.openarchives.oai._2.VerbType.LIST_METADATA_FORMATS;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -52,9 +53,15 @@ public class OAIWebResource {
             throws RepositoryException {
         if (verb.equals(IDENTIFY.value())) {
             return identifyRepository(uriInfo);
+        } else if (verb.equals(LIST_METADATA_FORMATS.value())) {
+            return metadataFormats(uriInfo);
         } else {
             throw new RepositoryException("Unable to create OAI response for verb '" + verb + "'");
         }
+    }
+
+    private Object metadataFormats(UriInfo uriInfo) throws RepositoryException {
+        return providerService.listMetadataFormats(this.session, uriInfo);
     }
 
     private Object identifyRepository(final UriInfo uriInfo) throws RepositoryException {

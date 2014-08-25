@@ -16,9 +16,9 @@
 
 package org.fcrepo.oai.service;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.GregorianCalendar;
+import java.util.List;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -31,7 +31,7 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.commons.io.IOUtils;
+import com.hp.hpl.jena.rdf.model.Resource;
 import org.fcrepo.http.commons.session.SessionFactory;
 import org.fcrepo.kernel.Datastream;
 import org.fcrepo.kernel.impl.rdf.impl.DefaultIdentifierTranslator;
@@ -39,6 +39,7 @@ import org.fcrepo.kernel.rdf.IdentifierTranslator;
 import org.fcrepo.kernel.services.DatastreamService;
 import org.fcrepo.kernel.services.NodeService;
 import org.fcrepo.kernel.services.ObjectService;
+import org.fcrepo.oai.MetadataFormat;
 import org.openarchives.oai._2.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -58,6 +59,8 @@ public class OAIProviderService {
     private final Model rdfModel = ModelFactory.createDefaultModel();
 
     private String identifyUri;
+
+    private List<MetadataFormat> metadataFormats;
 
     @Autowired
     private DatastreamService datastreamService;
@@ -97,5 +100,34 @@ public class OAIProviderService {
         oai.setResponseDate(dataFactory.newXMLGregorianCalendar(new GregorianCalendar()));
         oai.setRequest(req);
         return objFactory.createOAIPMH(oai);
+    }
+
+    public JAXBElement<OAIPMHtype> listMetadataFormats(Session session, UriInfo uriInfo) throws RepositoryException {
+        final String path = createSubject(uriInfo);
+        final ListMetadataFormatsType listMetadataFormats = objFactory.createListMetadataFormatsType();
+        for (MetadataFormat mdf : metadataFormats) {
+            final MetadataFormatType mdft = objFactory.createMetadataFormatType();
+            mdft.setMetadataPrefix(mdf.getPrefix());
+            mdft.setMetadataNamespace(mdf.getNamespace());
+            mdft.setSchema(mdf.getSchemaUrl());
+            listMetadataFormats.getMetadataFormat().add(mdft);
+        }
+
+        final RequestType req = objFactory.createRequestType();
+        req.setVerb(VerbType.LIST_METADATA_FORMATS);
+        req.setValue(uriInfo.getRequestUri().toASCIIString());
+
+        final OAIPMHtype oai = objFactory.createOAIPMHtype();
+        oai.setListMetadataFormats(listMetadataFormats);
+        oai.setRequest(req);
+        return objFactory.createOAIPMH(oai);
+    }
+
+    public void setMetadataFormats(List<MetadataFormat> metadataFormats) {
+        this.metadataFormats = metadataFormats;
+    }
+
+    public String createSubject(UriInfo uriInfo) throws RepositoryException {
+        return subjectTranslator.getPathFromSubject(rdfModel.createResource(uriInfo.getRequestUri().toASCIIString()));
     }
 }
