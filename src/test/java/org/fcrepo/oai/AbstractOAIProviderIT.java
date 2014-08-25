@@ -86,8 +86,7 @@ public abstract class AbstractOAIProviderIT {
             get = new HttpGet(serverAddress + "/oai/identify/fcr:content");
             HttpResponse resp = this.client.execute(get);
             return resp.getStatusLine().getStatusCode() == 200;
-        }
-        finally {
+        } finally {
             get.releaseConnection();
         }
     }
@@ -103,15 +102,22 @@ public abstract class AbstractOAIProviderIT {
     }
 
     @SuppressWarnings("unchecked")
-    public OAIPMHtype getOAIPMH(String verb) throws RepositoryException {
-        HttpGet get = new HttpGet(serverAddress + "/oai?verb=" + verb);
-        try {
-            HttpResponse resp = this.client.execute(get);
-            assertEquals(200, resp.getStatusLine().getStatusCode());
-            return ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
-        }catch(IOException | JAXBException e) {
-            throw new RepositoryException(e);
+    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix) throws IOException, JAXBException {
+        final StringBuilder url = new StringBuilder(serverAddress)
+                .append("/oai?verb=")
+                .append(verb);
+
+        if (identifier != null && !identifier.isEmpty()) {
+            url.append("&identifier=")
+                    .append(identifier);
         }
 
+        if (metadataPrefix != null && !metadataPrefix.isEmpty()) {
+            url.append("&metadataPrefix=")
+                    .append(metadataPrefix);
+        }
+
+        HttpGet get = new HttpGet(url.toString());
+        return this.client.execute(get);
     }
 }

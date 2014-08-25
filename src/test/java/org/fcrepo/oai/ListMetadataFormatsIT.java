@@ -16,7 +16,6 @@
 package org.fcrepo.oai;
 
 import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
 import org.junit.Test;
 import org.openarchives.oai._2.OAIPMHtype;
 import org.openarchives.oai._2.VerbType;
@@ -29,7 +28,10 @@ import static org.junit.Assert.assertNotNull;
 public class ListMetadataFormatsIT extends AbstractOAIProviderIT{
     @Test
     public void testListMetadataTypes() throws Exception {
-        OAIPMHtype oaipmh = getOAIPMH(VerbType.LIST_METADATA_FORMATS.value());
+        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), null, null);
+        assertEquals(200, resp.getStatusLine().getStatusCode());
+
+        OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(0, oaipmh.getError().size());
         assertNotNull(oaipmh.getListMetadataFormats());
         assertEquals(1, oaipmh.getListMetadataFormats().getMetadataFormat().size());

@@ -5,16 +5,17 @@
     <bean name="oaiProviderService" class="org.fcrepo.oai.service.OAIProviderService">
         <property name="identifyUri" value="info:fedora/oai/identify"/>
         <property name="metadataFormats">
-            <list>
-                <ref bean="oaiDcFormat"/>
-            </list>
+            <map>
+                <entry key="oai_dc" value-ref="oaiDcFormat" />
+            </map>
         </property>
     </bean>
 
     <bean name="oaiDcFormat" class="org.fcrepo.oai.MetadataFormat" >
-        <constructor-arg index="0" value="oai_dc" />
-        <constructor-arg index="1" value="http://www.openarchives.org/OAI/2.0/oai_dc.xsd" />
-        <constructor-arg index="2" value="http://www.openarchives.org/OAI/2.0/oai_dc/" />
+        <property name="prefix" value="oai_dc" />
+        <property name="schemaUrl" value="http://www.openarchives.org/OAI/2.0/oai_dc.xsd" />
+        <property name="namespace" value="http://www.openarchives.org/OAI/2.0/oai_dc/" />
+        <property name="propertyName" value="http://fedora.info/definitions/v4/config#hasOaiDCRecord" />
     </bean>
 
 </beans>

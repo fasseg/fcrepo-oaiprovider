@@ -18,15 +18,31 @@ package org.fcrepo.oai;
 
 public class MetadataFormat {
 
-    private final String prefix;
+    private String prefix;
 
-    private final String schemaUrl;
+    private String schemaUrl;
 
-    private final String namespace;
+    private String namespace;
 
-    public MetadataFormat(String prefix, String schemaUrl, String namespace) {
+    private String propertyName;
+
+    public String getPropertyName() {
+        return propertyName;
+    }
+
+    public void setPropertyName(String propertyName) {
+        this.propertyName = propertyName;
+    }
+
+    public void setPrefix(String prefix) {
         this.prefix = prefix;
+    }
+
+    public void setSchemaUrl(String schemaUrl) {
         this.schemaUrl = schemaUrl;
+    }
+
+    public void setNamespace(String namespace) {
         this.namespace = namespace;
     }
 

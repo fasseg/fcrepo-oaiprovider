@@ -16,8 +16,7 @@
 
 package org.fcrepo.oai.http;
 
-import static org.openarchives.oai._2.VerbType.IDENTIFY;
-import static org.openarchives.oai._2.VerbType.LIST_METADATA_FORMATS;
+import static org.openarchives.oai._2.VerbType.*;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -32,6 +31,8 @@ import javax.xml.bind.JAXBException;
 
 import org.fcrepo.http.commons.session.InjectedSession;
 import org.fcrepo.oai.service.OAIProviderService;
+import org.openarchives.oai._2.OAIPMHerrorcodeType;
+import org.openarchives.oai._2.VerbType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -49,16 +50,27 @@ public class OAIWebResource {
 
     @GET
     @Produces(MediaType.TEXT_XML)
-    public Object getOAIResponse(@QueryParam("verb") final String verb, @Context final UriInfo uriInfo)
-            throws RepositoryException {
+    public Object getOAIResponse(
+            @QueryParam("verb") final String verb,
+            @QueryParam("identifier") final String identifier,
+            @QueryParam("metadataPrefix") final String metadataPrefix,
+            @Context final UriInfo uriInfo) throws RepositoryException {
+
         if (verb.equals(IDENTIFY.value())) {
             return identifyRepository(uriInfo);
         } else if (verb.equals(LIST_METADATA_FORMATS.value())) {
             return metadataFormats(uriInfo);
+        } else if (verb.equals(GET_RECORD.value())) {
+            return getRecord(uriInfo, identifier, metadataPrefix);
         } else {
-            throw new RepositoryException("Unable to create OAI response for verb '" + verb + "'");
+            return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_VERB, "The verb '" + verb + "' is invalid");
         }
     }
+
+    private Object getRecord(final UriInfo uriInfo, final String identifier, final String metadataPrefix) throws RepositoryException {
+        return providerService.getRecord(this.session, uriInfo, identifier, metadataPrefix);
+    }
+
 
     private Object metadataFormats(UriInfo uriInfo) throws RepositoryException {
         return providerService.listMetadataFormats(this.session, uriInfo);
