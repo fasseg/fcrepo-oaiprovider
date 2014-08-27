@@ -54,12 +54,16 @@ public class OAIWebResource {
             @QueryParam("verb") final String verb,
             @QueryParam("identifier") final String identifier,
             @QueryParam("metadataPrefix") final String metadataPrefix,
+            @QueryParam("from") final String from,
+            @QueryParam("until") final String until,
+            @QueryParam("set") final String set,
+
             @Context final UriInfo uriInfo) throws RepositoryException {
 
         if (verb.equals(IDENTIFY.value())) {
             return identifyRepository(uriInfo);
         } else if (verb.equals(LIST_METADATA_FORMATS.value())) {
-            return metadataFormats(uriInfo);
+            return metadataFormats(uriInfo, identifier);
         } else if (verb.equals(GET_RECORD.value())) {
             return getRecord(uriInfo, identifier, metadataPrefix);
         } else {
@@ -72,8 +76,8 @@ public class OAIWebResource {
     }
 
 
-    private Object metadataFormats(UriInfo uriInfo) throws RepositoryException {
-        return providerService.listMetadataFormats(this.session, uriInfo);
+    private Object metadataFormats(UriInfo uriInfo, final String identifier) throws RepositoryException {
+        return providerService.listMetadataFormats(this.session, uriInfo, identifier);
     }
 
     private Object identifyRepository(final UriInfo uriInfo) throws RepositoryException {

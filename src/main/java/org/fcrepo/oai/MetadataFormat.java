@@ -16,6 +16,9 @@
 
 package org.fcrepo.oai;
 
+import org.openarchives.oai._2.MetadataFormatType;
+import org.openarchives.oai._2.ObjectFactory;
+
 public class MetadataFormat {
 
     private String prefix;
@@ -56,5 +59,15 @@ public class MetadataFormat {
 
     public String getNamespace() {
         return namespace;
+    }
+
+    public MetadataFormatType asMetadataFormatType() {
+        final ObjectFactory objectFactory = new ObjectFactory();
+        final MetadataFormatType type = objectFactory.createMetadataFormatType();
+        type.setSchema(schemaUrl);
+        type.setMetadataNamespace(namespace);
+        type.setMetadataPrefix(prefix);
+        return type;
+
     }
 }

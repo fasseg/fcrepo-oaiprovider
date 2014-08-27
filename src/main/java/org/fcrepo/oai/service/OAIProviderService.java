@@ -19,10 +19,9 @@ package org.fcrepo.oai.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.Map;
+import java.util.*;
 
+import javax.annotation.PostConstruct;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.ws.rs.core.UriInfo;
@@ -35,6 +34,7 @@ import javax.xml.datatype.DatatypeFactory;
 import javax.xml.namespace.QName;
 import javax.xml.transform.stream.StreamSource;
 
+import com.hp.hpl.jena.rdf.model.*;
 import org.apache.commons.io.IOUtils;
 import org.fcrepo.http.commons.session.SessionFactory;
 import org.fcrepo.kernel.Datastream;
@@ -47,11 +47,6 @@ import org.fcrepo.kernel.services.ObjectService;
 import org.fcrepo.oai.MetadataFormat;
 import org.openarchives.oai._2.*;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 public class OAIProviderService {
 
@@ -114,15 +109,24 @@ public class OAIProviderService {
         return subjectTranslator.getPathFromSubject(rdfModel.createResource(uri));
     }
 
-    public JAXBElement<OAIPMHtype> listMetadataFormats(Session session, UriInfo uriInfo) throws RepositoryException {
+    public JAXBElement<OAIPMHtype> listMetadataFormats(final Session session, final UriInfo uriInfo, final String identifier) throws RepositoryException {
         final String path = createSubject(uriInfo);
         final ListMetadataFormatsType listMetadataFormats = objFactory.createListMetadataFormatsType();
-        for (MetadataFormat mdf : metadataFormats.values()) {
-            final MetadataFormatType mdft = objFactory.createMetadataFormatType();
-            mdft.setMetadataPrefix(mdf.getPrefix());
-            mdft.setMetadataNamespace(mdf.getNamespace());
-            mdft.setSchema(mdf.getSchemaUrl());
-            listMetadataFormats.getMetadataFormat().add(mdft);
+        if (identifier != null && !identifier.isEmpty()) {
+            /* generate metadata format response for a single pid */
+            if (!this.objectService.exists(session, "/" + identifier)) {
+                 return error(VerbType.LIST_METADATA_FORMATS, identifier, null, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST, "The object does not exist");
+            }
+            final FedoraObject obj = this.objectService.getObject(session, "/" + identifier);
+            final Model model = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
+            for (MetadataFormat mdf : metadataFormats.values()) {
+                if (model.listObjectsOfProperty(rdfModel.createProperty(mdf.getPropertyName())).hasNext()) {
+                    listMetadataFormats.getMetadataFormat().add(mdf.asMetadataFormatType());
+                }
+            }
+        } else {
+            /* generate a general metadataformat respose */
+            listMetadataFormats.getMetadataFormat().addAll(listAvailableMetadataFormats());
         }
 
         final RequestType req = objFactory.createRequestType();
@@ -135,11 +139,28 @@ public class OAIProviderService {
         return objFactory.createOAIPMH(oai);
     }
 
-    public void setMetadataFormats(Map<String, MetadataFormat> metadataFormats) {
+    private List<MetadataFormatType> listObjectMetadataFormats(final Session session, final FedoraObject obj) throws RepositoryException {
+        final List<MetadataFormatType> types = new ArrayList<>();
+        return types;
+    }
+
+    private List<MetadataFormatType> listAvailableMetadataFormats() {
+        final List<MetadataFormatType> types = new ArrayList<>(metadataFormats.size());
+        for (MetadataFormat mdf : metadataFormats.values()) {
+            final MetadataFormatType mdft = objFactory.createMetadataFormatType();
+            mdft.setMetadataPrefix(mdf.getPrefix());
+            mdft.setMetadataNamespace(mdf.getNamespace());
+            mdft.setSchema(mdf.getSchemaUrl());
+            types.add(mdft);
+        }
+        return types;
+    }
+
+    public void setMetadataFormats(final Map<String, MetadataFormat> metadataFormats) {
         this.metadataFormats = metadataFormats;
     }
 
-    public String createSubject(UriInfo uriInfo) throws RepositoryException {
+    public String createSubject(final UriInfo uriInfo) throws RepositoryException {
         return subjectTranslator.getPathFromSubject(rdfModel.createResource(uriInfo.getRequestUri().toASCIIString()));
     }
 
