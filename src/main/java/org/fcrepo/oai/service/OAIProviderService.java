@@ -18,6 +18,7 @@ package org.fcrepo.oai.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -31,9 +32,12 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
 import javax.xml.namespace.QName;
 import javax.xml.transform.stream.StreamSource;
 
+import com.hp.hpl.jena.query.QuerySolution;
+import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.*;
 import org.apache.commons.io.IOUtils;
 import org.fcrepo.http.commons.session.SessionFactory;
@@ -45,6 +49,11 @@ import org.fcrepo.kernel.services.DatastreamService;
 import org.fcrepo.kernel.services.NodeService;
 import org.fcrepo.kernel.services.ObjectService;
 import org.fcrepo.oai.MetadataFormat;
+import org.fcrepo.transform.sparql.JQLConverter;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 import org.openarchives.oai._2.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -64,7 +73,7 @@ public class OAIProviderService {
 
     private Map<String, MetadataFormat> metadataFormats;
 
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    private DateTimeFormatter dateFormat = ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
 
     @Autowired
     private DatastreamService datastreamService;
@@ -206,7 +215,7 @@ public class OAIProviderService {
 
         final HeaderType header = this.objFactory.createHeaderType();
         header.setIdentifier(identifier);
-        header.setDatestamp(dateFormat.format(new Date()));
+        header.setDatestamp(dateFormat.print(new Date().getTime()));
         record.setHeader(header);
         // TODO: add set specs
 
@@ -245,5 +254,42 @@ public class OAIProviderService {
         if (!metadataFormats.containsKey(prefix)) {
             throw new RepositoryException("Metadata prefix '" + prefix + "' is not available");
         }
+    }
+
+    public JAXBElement<OAIPMHtype> listIdentifiers(Session session, UriInfo uriInfo, String metadataPrefix, String from, String until, String set) throws RepositoryException {
+        final MetadataFormat mdf = metadataFormats.get(metadataPrefix);
+        if (mdf == null) {
+            return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.CANNOT_DISSEMINATE_FORMAT, "Unavailable metadata format");
+        }
+        final DateTime fromDateTime = (from != null && !from.isEmpty()) ? dateFormat.parseDateTime(from) : null;
+        final DateTime untilDateTime = (until != null && !until.isEmpty()) ? dateFormat.parseDateTime(until) : null;
+        if (fromDateTime != null && untilDateTime != null && fromDateTime.isAfter(untilDateTime)) {
+            return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.NO_RECORDS_MATCH, "No record found");
+        }
+        final String sparql = "SELECT ?sub ?obj WHERE { ?sub <" + mdf.getPropertyName() + "> ?obj }";
+        final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql);
+        final ResultSet result = jql.execute();
+        final OAIPMHtype oai = this.objFactory.createOAIPMHtype();
+        final ListIdentifiersType ids = this.objFactory.createListIdentifiersType();
+        if (!result.hasNext()) {
+            return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.NO_RECORDS_MATCH, "No record found");
+        }
+        while (result.hasNext()) {
+            final HeaderType h = this.objFactory.createHeaderType();
+            final QuerySolution sol = result.next();
+            final Resource sub = sol.get("sub").asResource();
+            h.setIdentifier(sub.getURI());
+            final FedoraObject obj = this.objectService.getObject(session, subjectTranslator.getPathFromSubject(sub));
+            h.setDatestamp(dateFormat.print(obj.getLastModifiedDate().getTime()));
+            //TODO: add sets
+            ids.getHeader().add(h);
+        }
+
+        final RequestType req = this.objFactory.createRequestType();
+        req.setVerb(VerbType.LIST_IDENTIFIERS);
+        req.setMetadataPrefix(metadataPrefix);
+        oai.setRequest(req);
+        oai.setListIdentifiers(ids);
+        return this.objFactory.createOAIPMH(oai);
     }
 }

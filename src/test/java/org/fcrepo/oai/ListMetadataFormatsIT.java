@@ -31,7 +31,7 @@ import static org.junit.Assert.assertNotNull;
 public class ListMetadataFormatsIT extends AbstractOAIProviderIT{
     @Test
     public void testListAvailableMetadataTypes() throws Exception {
-        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), null, null);
+        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), null, null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
 
         OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
@@ -47,7 +47,7 @@ public class ListMetadataFormatsIT extends AbstractOAIProviderIT{
 
     @Test
     public void testListNonExistingObjectMetadataTypes() throws Exception {
-        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), "non-existing-pid", null);
+        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), "non-existing-pid", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
 
         OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
@@ -60,7 +60,7 @@ public class ListMetadataFormatsIT extends AbstractOAIProviderIT{
         String pid = "oai-test-" + RandomStringUtils.randomAlphabetic(8);
         createFedoraObject(pid, "oai-dc-" + RandomStringUtils.randomAlphabetic(8));
 
-        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(),pid , null);
+        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(),pid , null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
 
         OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();

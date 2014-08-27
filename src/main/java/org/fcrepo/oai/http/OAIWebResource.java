@@ -27,11 +27,13 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
+import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 
 import org.fcrepo.http.commons.session.InjectedSession;
 import org.fcrepo.oai.service.OAIProviderService;
 import org.openarchives.oai._2.OAIPMHerrorcodeType;
+import org.openarchives.oai._2.OAIPMHtype;
 import org.openarchives.oai._2.VerbType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
@@ -66,9 +68,15 @@ public class OAIWebResource {
             return metadataFormats(uriInfo, identifier);
         } else if (verb.equals(GET_RECORD.value())) {
             return getRecord(uriInfo, identifier, metadataPrefix);
+        } else if (verb.equals(LIST_IDENTIFIERS.value())) {
+            return listIdentifiers(uriInfo, metadataPrefix, from, until, set);
         } else {
             return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_VERB, "The verb '" + verb + "' is invalid");
         }
+    }
+
+    private JAXBElement<OAIPMHtype> listIdentifiers(UriInfo uriInfo, String metadataPrefix, String from, String until, String set) throws RepositoryException {
+        return providerService.listIdentifiers(this.session, uriInfo, metadataPrefix, from, until, set);
     }
 
     private Object getRecord(final UriInfo uriInfo, final String identifier, final String metadataPrefix) throws RepositoryException {

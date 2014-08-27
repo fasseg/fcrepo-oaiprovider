@@ -104,7 +104,7 @@ public abstract class AbstractOAIProviderIT {
     }
 
     @SuppressWarnings("unchecked")
-    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix) throws IOException,
+    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix, String from, String until) throws IOException,
             JAXBException {
         final StringBuilder url = new StringBuilder(serverAddress)
                 .append("/oai?verb=")
@@ -118,6 +118,14 @@ public abstract class AbstractOAIProviderIT {
         if (metadataPrefix != null && !metadataPrefix.isEmpty()) {
             url.append("&metadataPrefix=")
                     .append(metadataPrefix);
+        }
+        if (from != null && !from.isEmpty()) {
+            url.append("&from=")
+                    .append(from);
+        }
+        if (until != null && !until.isEmpty()) {
+            url.append("&until=")
+                    .append(until);
         }
 
         HttpGet get = new HttpGet(url.toString());

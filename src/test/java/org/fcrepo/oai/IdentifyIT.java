@@ -31,7 +31,7 @@ public class IdentifyIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testIdentify() throws Exception {
-        HttpResponse resp = getOAIPMHResponse(VerbType.IDENTIFY.value(), null, null);
+        HttpResponse resp = getOAIPMHResponse(VerbType.IDENTIFY.value(), null, null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(0, oaipmh.getError().size());
