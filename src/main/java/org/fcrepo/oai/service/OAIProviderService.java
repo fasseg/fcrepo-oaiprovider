@@ -48,7 +48,10 @@ import org.fcrepo.oai.MetadataFormat;
 import org.openarchives.oai._2.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 public class OAIProviderService {
 
@@ -148,14 +151,14 @@ public class OAIProviderService {
                     OAIPMHerrorcodeType.CANNOT_DISSEMINATE_FORMAT, "The metadata format is not available");
         }
 
-        final String path = subjectTranslator.getPathFromSubject(rdfModel.createResource(identifier));
+        final String path = "/" + identifier;
         if (path == null || !this.objectService.exists(session, path)) {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST,
                     "The requested identifier does not exist");
         }
         final FedoraObject obj = this.objectService.getObject(session, path);
         final Model model = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
-        final StmtIterator it = model.listStatements(model.createResource(identifier),
+        final StmtIterator it = model.listStatements(subjectTranslator.getSubject("/" + identifier),
                 model.createProperty("http://fedora.info/definitions/v4/config#", "hasOaiDCRecord"),
                 (RDFNode) null);
         if (!it.hasNext()) {
@@ -188,16 +191,17 @@ public class OAIProviderService {
 
         final MetadataType md = this.objFactory.createMetadataType();
         try {
-            md.setAny(new JAXBElement<String>(new QName(format.getPrefix()), String.class, IOUtils.toString(mdDs
-                    .getContent())));
+            String content = IOUtils.toString(mdDs.getContent());
+            md.setAny(new JAXBElement<String>(new QName(format.getPrefix()), String.class, content));
         } catch (IOException e) {
             throw new RepositoryException(e);
         } finally {
             IOUtils.closeQuietly(mdDs.getContent());
         }
+        record.setMetadata(md);
 
         oai.setGetRecord(getRecord);
-        return null;
+        return this.objFactory.createOAIPMH(oai);
     }
 
     public JAXBElement<OAIPMHtype> error(VerbType verb, String identifier, String metadataPrefix,
@@ -218,7 +222,7 @@ public class OAIProviderService {
 
     private void checkRequestedMetadataPrefix(final String prefix) throws RepositoryException {
         if (!metadataFormats.containsKey(prefix)) {
-            throw new RepositoryException("Metadata Profix is not available");
+            throw new RepositoryException("Metadata prefix '" + prefix + "' is not available");
         }
     }
 }

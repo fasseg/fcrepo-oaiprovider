@@ -20,6 +20,7 @@ import static java.lang.Integer.parseInt;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringWriter;
 
 import javax.annotation.PostConstruct;
@@ -30,6 +31,8 @@ import javax.xml.namespace.QName;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -60,30 +63,29 @@ public abstract class AbstractOAIProviderIT {
             parseInt(System.getProperty("test.port", "8096"));
 
     @PostConstruct
-    public void createDefaultIdentifyResponse() throws Exception {
-        if (defaultIdentityResponseExists()) {
-            return;
-        }
-        IdentifyType id = oaiFactory.createIdentifyType();
-        id.setRepositoryName("Fedora 4 Test Instance");
-        id.setBaseURL(serverAddress);
+    public void initTests() throws Exception {
+        /* Check and/or add the default Identify response */
+        if (!defaultIdentityResponseExists()) {
+            IdentifyType id = oaiFactory.createIdentifyType();
+            id.setRepositoryName("Fedora 4 Test Instance");
+            id.setBaseURL(serverAddress);
 
-        HttpPost post = new HttpPost(serverAddress + "/oai/identify/fcr:content");
-        StringWriter data = new StringWriter();
-        marshaller.marshal(new JAXBElement<IdentifyType>(new QName("Identify"), IdentifyType.class, id), data);
-        post.setEntity(new StringEntity(data.toString()));
-        HttpResponse resp = this.client.execute(post);
-        if (resp.getStatusLine().getStatusCode() != 201) {
-            throw new RepositoryException("Unable to create default OAI record for integration tests");
-        } else {
-            logger.debug("successfully created identify response for integration tests");
+            HttpPost post = new HttpPost(serverAddress + "/oai/identify/fcr:content");
+            StringWriter data = new StringWriter();
+            marshaller.marshal(new JAXBElement<IdentifyType>(new QName("Identify"), IdentifyType.class, id), data);
+            post.setEntity(new StringEntity(data.toString()));
+            try {
+                HttpResponse resp = this.client.execute(post);
+                assertEquals(201, resp.getStatusLine().getStatusCode());
+            } finally {
+                post.releaseConnection();
+            }
         }
     }
 
     protected boolean defaultIdentityResponseExists() throws IOException {
-        HttpGet get = null;
+        HttpGet get = new HttpGet(serverAddress + "/oai/identify/fcr:content");
         try {
-            get = new HttpGet(serverAddress + "/oai/identify/fcr:content");
             HttpResponse resp = this.client.execute(get);
             return resp.getStatusLine().getStatusCode() == 200;
         } finally {
@@ -102,7 +104,8 @@ public abstract class AbstractOAIProviderIT {
     }
 
     @SuppressWarnings("unchecked")
-    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix) throws IOException, JAXBException {
+    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix) throws IOException,
+            JAXBException {
         final StringBuilder url = new StringBuilder(serverAddress)
                 .append("/oai?verb=")
                 .append(verb);
@@ -119,5 +122,33 @@ public abstract class AbstractOAIProviderIT {
 
         HttpGet get = new HttpGet(url.toString());
         return this.client.execute(get);
+    }
+
+    public void createFedoraObject(String id, String oaiRecordId) throws IOException {
+        HttpPost post = new HttpPost(serverAddress + "/");
+        post.addHeader("Slug",id);
+        if (oaiRecordId != null) {
+            StringBuilder sparql = new StringBuilder("INSERT {")
+                    .append("<> ")
+                    .append("<http://fedora.info/definitions/v4/config#hasOaiDCRecord> ")
+                    .append("<info:fedora/").append(oaiRecordId).append(">")
+                    .append("} WHERE {}");
+            post.setEntity(new StringEntity(sparql.toString()));
+            post.addHeader("Content-Type", "application/sparql-update");
+        }
+        HttpResponse resp = this.client.execute(post);
+        assertEquals(201, resp.getStatusLine().getStatusCode());
+        post.releaseConnection();
+    }
+
+    public void createOaiDcObject(String oaiDcId, InputStream src) throws IOException {
+        HttpPost post = new HttpPost(serverAddress + "/");
+        post.addHeader("Slug",oaiDcId);
+        post.addHeader("Content-Type", "application/octet-stream");
+        post.setEntity(new InputStreamEntity(src));
+        HttpResponse resp = this.client.execute(post);
+        assertEquals(201, resp.getStatusLine().getStatusCode());
+        post.releaseConnection();
+
     }
 }
