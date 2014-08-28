@@ -36,6 +36,7 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.fcrepo.oai.service.OAIProviderService;
 import org.junit.runner.RunWith;
 import org.openarchives.oai._2.IdentifyType;
 import org.openarchives.oai._2.OAIPMHtype;
@@ -102,6 +103,13 @@ public abstract class AbstractOAIProviderIT {
             throw new RuntimeException("Unable to create JAX-B context");
         }
     }
+    public HttpResponse getOAIPMHResponse(String tokenData) throws IOException, JAXBException {
+        final StringBuilder url = new StringBuilder(serverAddress)
+                .append("/oai?resumptionToken=")
+                .append(tokenData);
+        HttpGet get = new HttpGet(url.toString());
+        return this.client.execute(get);
+    }
 
     @SuppressWarnings("unchecked")
     public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix, String from, String until) throws IOException,
@@ -157,6 +165,5 @@ public abstract class AbstractOAIProviderIT {
         HttpResponse resp = this.client.execute(post);
         assertEquals(201, resp.getStatusLine().getStatusCode());
         post.releaseConnection();
-
     }
 }

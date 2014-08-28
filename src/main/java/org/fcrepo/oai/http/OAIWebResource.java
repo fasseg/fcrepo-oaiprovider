@@ -18,6 +18,8 @@ package org.fcrepo.oai.http;
 
 import static org.openarchives.oai._2.VerbType.*;
 
+import java.io.UnsupportedEncodingException;
+
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.ws.rs.GET;
@@ -31,10 +33,10 @@ import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 
 import org.fcrepo.http.commons.session.InjectedSession;
+import org.fcrepo.oai.ResumptionToken;
 import org.fcrepo.oai.service.OAIProviderService;
 import org.openarchives.oai._2.OAIPMHerrorcodeType;
 import org.openarchives.oai._2.OAIPMHtype;
-import org.openarchives.oai._2.VerbType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -53,15 +55,28 @@ public class OAIWebResource {
     @GET
     @Produces(MediaType.TEXT_XML)
     public Object getOAIResponse(
-            @QueryParam("verb") final String verb,
+            @QueryParam("verb") String verb,
             @QueryParam("identifier") final String identifier,
-            @QueryParam("metadataPrefix") final String metadataPrefix,
-            @QueryParam("from") final String from,
-            @QueryParam("until") final String until,
-            @QueryParam("set") final String set,
-
+            @QueryParam("metadataPrefix") String metadataPrefix,
+            @QueryParam("from") String from,
+            @QueryParam("until") String until,
+            @QueryParam("set") String set,
+            @QueryParam("resumptionToken") final String resumptionToken,
             @Context final UriInfo uriInfo) throws RepositoryException {
-
+        int offset = 0;
+        if (resumptionToken != null && !resumptionToken.isEmpty()) {
+            try {
+                final ResumptionToken token = OAIProviderService.decodeResumptionToken(resumptionToken);
+                verb = token.getVerb();
+                from = token.getFrom();
+                until = token.getUntil();
+                set = token.getSet();
+                metadataPrefix = token.getMetadataPrefix();
+                offset = token.getOffset();
+            } catch (UnsupportedEncodingException e) {
+                throw new RepositoryException(e);
+            }
+        }
         if (verb.equals(IDENTIFY.value())) {
             return identifyRepository(uriInfo);
         } else if (verb.equals(LIST_METADATA_FORMATS.value())) {
@@ -69,20 +84,22 @@ public class OAIWebResource {
         } else if (verb.equals(GET_RECORD.value())) {
             return getRecord(uriInfo, identifier, metadataPrefix);
         } else if (verb.equals(LIST_IDENTIFIERS.value())) {
-            return listIdentifiers(uriInfo, metadataPrefix, from, until, set);
+            return listIdentifiers(uriInfo, metadataPrefix, from, until, set, offset);
         } else {
-            return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_VERB, "The verb '" + verb + "' is invalid");
+            return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_VERB,
+                    "The verb '" + verb + "' is invalid");
         }
     }
 
-    private JAXBElement<OAIPMHtype> listIdentifiers(UriInfo uriInfo, String metadataPrefix, String from, String until, String set) throws RepositoryException {
-        return providerService.listIdentifiers(this.session, uriInfo, metadataPrefix, from, until, set);
+    private JAXBElement<OAIPMHtype> listIdentifiers(UriInfo uriInfo, String metadataPrefix, String from,
+            String until, String set, int offset) throws RepositoryException {
+        return providerService.listIdentifiers(this.session, uriInfo, metadataPrefix, from, until, set, offset);
     }
 
-    private Object getRecord(final UriInfo uriInfo, final String identifier, final String metadataPrefix) throws RepositoryException {
+    private Object getRecord(final UriInfo uriInfo, final String identifier, final String metadataPrefix)
+            throws RepositoryException {
         return providerService.getRecord(this.session, uriInfo, identifier, metadataPrefix);
     }
-
 
     private Object metadataFormats(UriInfo uriInfo, final String identifier) throws RepositoryException {
         return providerService.listMetadataFormats(this.session, uriInfo, identifier);

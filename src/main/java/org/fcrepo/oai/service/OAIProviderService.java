@@ -18,6 +18,9 @@ package org.fcrepo.oai.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.*;
 
 import javax.jcr.RepositoryException;
@@ -32,7 +35,9 @@ import javax.xml.datatype.DatatypeFactory;
 import javax.xml.namespace.QName;
 import javax.xml.transform.stream.StreamSource;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.fcrepo.http.commons.session.SessionFactory;
 import org.fcrepo.kernel.Datastream;
 import org.fcrepo.kernel.FedoraObject;
@@ -43,6 +48,7 @@ import org.fcrepo.kernel.services.DatastreamService;
 import org.fcrepo.kernel.services.NodeService;
 import org.fcrepo.kernel.services.ObjectService;
 import org.fcrepo.oai.MetadataFormat;
+import org.fcrepo.oai.ResumptionToken;
 import org.fcrepo.transform.sparql.JQLConverter;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -73,6 +79,8 @@ public class OAIProviderService {
 
     private DateTimeFormatter dateFormat = ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
 
+    private int maxListSize;
+
     @Autowired
     private DatastreamService datastreamService;
 
@@ -84,6 +92,10 @@ public class OAIProviderService {
 
     @Autowired
     private ObjectService objectService;
+
+    public void setMaxListSize(int maxListSize) {
+        this.maxListSize = maxListSize;
+    }
 
     public void setIdentifyUri(String identifyUri) {
         this.identifyUri = identifyUri;
@@ -257,7 +269,7 @@ public class OAIProviderService {
     }
 
     public JAXBElement<OAIPMHtype> listIdentifiers(Session session, UriInfo uriInfo, String metadataPrefix,
-            String from, String until, String set) throws RepositoryException {
+            String from, String until, String set, int offset) throws RepositoryException {
         final MetadataFormat mdf = metadataFormats.get(metadataPrefix);
         if (mdf == null) {
             return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix,
@@ -267,12 +279,15 @@ public class OAIProviderService {
         final DateTime untilDateTime = (until != null && !until.isEmpty()) ? dateFormat.parseDateTime(until) : null;
         final StringBuilder sparql =
                 new StringBuilder("PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> ")
-                        .append("SELECT ?sub ?obj WHERE { ?sub <").append(mdf.getPropertyName()).append("> ?obj . ");
+                        .append("SELECT ?sub ?obj WHERE { ")
+                        .append("?sub <").append(mdf.getPropertyName()).append("> ?obj . ");
         if (fromDateTime != null) {
             sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ")
-                    .append("FILTER ( ?date >= \"2014-06-05T10:10:10+05:30\"^^xsd:dateTime )");
+                    .append("FILTER (?date >= \"2014-06-05T10:10:10+05:30\"^^xsd:dateTime)");
         }
-        sparql.append(" }");
+        sparql.append("}")
+                .append(" OFFSET ").append(offset)
+                .append(" LIMIT ").append(maxListSize);
         try {
             final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql.toString());
             final ResultSet result = jql.execute();
@@ -295,6 +310,10 @@ public class OAIProviderService {
             }
 
             final RequestType req = this.objFactory.createRequestType();
+            if (ids.getHeader().size() == maxListSize) {
+                req.setResumptionToken(encodeResumptionToken(VerbType.LIST_IDENTIFIERS.value(),metadataPrefix, from, until, set,
+                        offset + maxListSize));
+            }
             req.setVerb(VerbType.LIST_IDENTIFIERS);
             req.setMetadataPrefix(metadataPrefix);
             oai.setRequest(req);
@@ -304,5 +323,46 @@ public class OAIProviderService {
             e.printStackTrace();
             throw new RepositoryException(e);
         }
+    }
+
+    public static String encodeResumptionToken(String verb, String metadataPrefix, String from, String until,
+            String set, int offset) throws UnsupportedEncodingException {
+        if (from == null) {
+            from = "";
+        }
+        if (until == null) {
+            until = "";
+        }
+        if (set == null) {
+            set = "";
+        }
+        String[] data = new String[] {
+            urlEncode(verb),
+            urlEncode(metadataPrefix),
+            urlEncode(from),
+            urlEncode(until),
+            urlEncode(set),
+            urlEncode(String.valueOf(offset))
+        };
+        return Base64.encodeBase64URLSafeString(StringUtils.join(data, ':').getBytes("UTF-8"));
+    }
+
+    public static String urlEncode(String value) throws UnsupportedEncodingException {
+        return URLEncoder.encode(value, "UTF-8");
+    }
+
+    public static String urlDecode(String value) throws UnsupportedEncodingException {
+        return URLDecoder.decode(value, "UTF-8");
+    }
+
+    public static ResumptionToken decodeResumptionToken(String token) throws UnsupportedEncodingException {
+        String[] data = StringUtils.splitPreserveAllTokens(new String(Base64.decodeBase64(token)), ':');
+        final String verb = urlDecode(data[0]);
+        final String metadataPrefix = urlDecode(data[1]);
+        final String from = urlDecode(data[2]);
+        final String until = urlDecode(data[3]);
+        final String set = urlDecode(data[4]);
+        final int offset = Integer.parseInt(urlDecode(data[5]));
+        return new ResumptionToken(verb, metadataPrefix, from, until, offset, set);
     }
 }

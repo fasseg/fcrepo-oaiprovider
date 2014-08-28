@@ -16,29 +16,29 @@
 
 package org.fcrepo.oai;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import javax.xml.bind.JAXBElement;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.junit.Test;
 import org.openarchives.oai._2.OAIPMHerrorcodeType;
 import org.openarchives.oai._2.OAIPMHtype;
 import org.openarchives.oai._2.VerbType;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
 
 public class ListIdentifiersIT extends AbstractOAIProviderIT {
 
     @Test
     @SuppressWarnings("unchecked")
     public void testListIdentifyNoRecords() throws Exception {
-        HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", "2014-01-02T20:30:00Z","2014-01-01T20:30:00Z");
+        HttpResponse resp =
+                getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", "2014-01-02T20:30:00Z",
+                        "2014-01-01T20:30:00Z");
         assertEquals(200, resp.getStatusLine().getStatusCode());
-        OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        OAIPMHtype oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertNotNull(oaipmh.getRequest());
         assertEquals(VerbType.LIST_IDENTIFIERS.value(), oaipmh.getRequest().getVerb().value());
         assertEquals(1, oaipmh.getError().size());
@@ -50,7 +50,8 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     public void testListIdentifyUnavailableMetadataFormat() throws Exception {
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "marc21", null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
-        OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        OAIPMHtype oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertNotNull(oaipmh.getRequest());
         assertEquals(VerbType.LIST_IDENTIFIERS.value(), oaipmh.getRequest().getVerb().value());
         assertEquals(1, oaipmh.getError().size());
@@ -60,11 +61,46 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecords() throws Exception {
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" + RandomStringUtils.randomAlphabetic(16));
+        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
+                RandomStringUtils.randomAlphabetic(16));
 
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
-        OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        OAIPMHtype oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        assertEquals(0, oaipmh.getError().size());
+        assertNotNull(oaipmh.getListIdentifiers());
+        assertNotNull(oaipmh.getListIdentifiers().getHeader());
+        assertEquals(VerbType.LIST_IDENTIFIERS.value(), oaipmh.getRequest().getVerb().value());
+        assertEquals(0, oaipmh.getError().size());
+        assertTrue(oaipmh.getListIdentifiers().getHeader().size() > 0);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testListIdentifyRecordsResumption() throws Exception {
+        for (int i=0; i < 6; i++) {
+            createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
+                    RandomStringUtils.randomAlphabetic(16));
+        }
+
+        HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null);
+        assertEquals(200, resp.getStatusLine().getStatusCode());
+        OAIPMHtype oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        assertEquals(0, oaipmh.getError().size());
+        assertNotNull(oaipmh.getListIdentifiers());
+        assertNotNull(oaipmh.getListIdentifiers().getHeader());
+        assertEquals(VerbType.LIST_IDENTIFIERS.value(), oaipmh.getRequest().getVerb().value());
+        assertEquals(0, oaipmh.getError().size());
+        assertTrue(oaipmh.getListIdentifiers().getHeader().size() > 0);
+        assertNotNull(oaipmh.getRequest().getResumptionToken());
+
+        /* resume using the token data provided */
+        resp = getOAIPMHResponse(oaipmh.getRequest().getResumptionToken());
+        assertEquals(200, resp.getStatusLine().getStatusCode());
+        oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(0, oaipmh.getError().size());
         assertNotNull(oaipmh.getListIdentifiers());
         assertNotNull(oaipmh.getListIdentifiers().getHeader());
@@ -76,11 +112,14 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecordsFrom() throws Exception {
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" + RandomStringUtils.randomAlphabetic(16));
+        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
+                RandomStringUtils.randomAlphabetic(16));
 
-        HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", "2012-12-13T01:00:00Z", null);
+        HttpResponse resp =
+                getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", "2012-12-13T01:00:00Z", null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
-        OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        OAIPMHtype oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(0, oaipmh.getError().size());
         assertNotNull(oaipmh.getListIdentifiers());
         assertNotNull(oaipmh.getListIdentifiers().getHeader());

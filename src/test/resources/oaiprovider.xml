@@ -4,6 +4,7 @@
 
     <bean name="oaiProviderService" class="org.fcrepo.oai.service.OAIProviderService">
         <property name="identifyUri" value="info:fedora/oai/identify"/>
+        <property name="maxListSize" value="5" />
         <property name="metadataFormats">
             <map>
                 <entry key="oai_dc" value-ref="oaiDcFormat" />

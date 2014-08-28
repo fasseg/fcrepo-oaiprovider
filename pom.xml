@@ -43,6 +43,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.9</version>
+        </dependency>
+        <dependency>
             <groupId>org.fcrepo</groupId>
             <artifactId>fcrepo-transform</artifactId>
             <version>4.0.0-beta-02-SNAPSHOT</version>
