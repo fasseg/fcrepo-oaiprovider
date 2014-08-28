@@ -18,11 +18,13 @@ package org.fcrepo.oai.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.*;
 
+import javax.annotation.PostConstruct;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.ws.rs.core.UriInfo;
@@ -73,7 +75,19 @@ public class OAIProviderService {
 
     private final Model rdfModel = ModelFactory.createDefaultModel();
 
-    private String identifyUri;
+    private String identifyPath;
+
+    private String setsRootPath;
+
+    private String hasSetsPropertyName;
+
+    private String hasSetNamePropertyName;
+
+    private String hasSetSpecPropertyName;
+
+    private String setsPropertyName;
+
+    private boolean setsEnabled;
 
     private Map<String, MetadataFormat> metadataFormats;
 
@@ -93,23 +107,58 @@ public class OAIProviderService {
     @Autowired
     private ObjectService objectService;
 
+    public void setHasSetSpecPropertyName(String hasSetSpecPropertyName) {
+        this.hasSetSpecPropertyName = hasSetSpecPropertyName;
+    }
+
+    public void setHasSetNamePropertyName(String hasSetNamePropertyName) {
+        this.hasSetNamePropertyName = hasSetNamePropertyName;
+    }
+
+    public void setHasSetsPropertyName(String hasSetsPropertyName) {
+        this.hasSetsPropertyName = hasSetsPropertyName;
+    }
+
     public void setMaxListSize(int maxListSize) {
         this.maxListSize = maxListSize;
     }
 
-    public void setIdentifyUri(String identifyUri) {
-        this.identifyUri = identifyUri;
+    public void setSetsPropertyName(String setsPropertyName) {
+        this.setsPropertyName = setsPropertyName;
+    }
+
+    public void setSetsRootPath(String setsRootPath) {
+        this.setsRootPath = setsRootPath;
+    }
+
+    public void setSetsEnabled(boolean setsEnabled) {
+        this.setsEnabled = setsEnabled;
+    }
+
+    public void setIdentifyPath(String identifyPath) {
+        this.identifyPath = identifyPath;
+    }
+
+    @PostConstruct
+    public void init() throws RepositoryException {
+        /* check if set root node exists */
+        Session session = sessionFactory.getInternalSession();
+        if (!this.objectService.exists(session, setsRootPath)) {
+            this.objectService.createObject(session, setsRootPath);
+        }
+        session.save();
     }
 
     public OAIProviderService() throws DatatypeConfigurationException, JAXBException {
         this.dataFactory = DatatypeFactory.newInstance();
         this.objFactory = new ObjectFactory();
-        this.unmarshaller = JAXBContext.newInstance(OAIPMHtype.class, IdentifyType.class).createUnmarshaller();
+        this.unmarshaller =
+                JAXBContext.newInstance(OAIPMHtype.class, IdentifyType.class, SetType.class).createUnmarshaller();
     }
 
     public JAXBElement<OAIPMHtype> identify(final Session session, UriInfo uriInfo) throws RepositoryException,
             JAXBException {
-        final Datastream ds = this.datastreamService.getDatastream(session, createSubject(identifyUri));
+        final Datastream ds = this.datastreamService.getDatastream(session, identifyPath);
         final InputStream data = ds.getContent();
         final IdentifyType id = this.unmarshaller.unmarshal(new StreamSource(data), IdentifyType.class).getValue();
 
@@ -311,7 +360,8 @@ public class OAIProviderService {
 
             final RequestType req = this.objFactory.createRequestType();
             if (ids.getHeader().size() == maxListSize) {
-                req.setResumptionToken(encodeResumptionToken(VerbType.LIST_IDENTIFIERS.value(),metadataPrefix, from, until, set,
+                req.setResumptionToken(encodeResumptionToken(VerbType.LIST_IDENTIFIERS.value(), metadataPrefix, from,
+                        until, set,
                         offset + maxListSize));
             }
             req.setVerb(VerbType.LIST_IDENTIFIERS);
@@ -364,5 +414,88 @@ public class OAIProviderService {
         final String set = urlDecode(data[4]);
         final int offset = Integer.parseInt(urlDecode(data[5]));
         return new ResumptionToken(verb, metadataPrefix, from, until, offset, set);
+    }
+
+    public JAXBElement<OAIPMHtype> listSets(Session session, int offset) throws RepositoryException {
+        try {
+            final StringBuilder sparql = new StringBuilder("SELECT ?obj WHERE {")
+                    .append("<").append(subjectTranslator.getSubject(setsRootPath)).append(">")
+                    .append("<").append(hasSetsPropertyName).append("> ?obj }");
+            final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql.toString());
+            final ResultSet result = jql.execute();
+            final OAIPMHtype oai = this.objFactory.createOAIPMHtype();
+            final ListSetsType sets = this.objFactory.createListSetsType();
+            while (result.hasNext()) {
+                final Resource setRes = result.next().get("obj").asResource();
+                sparql.setLength(0);
+                sparql.append("SELECT ?name ?spec WHERE {")
+                        .append("<").append(setRes).append("> ")
+                        .append("<").append(hasSetNamePropertyName).append("> ")
+                        .append("?name ; ")
+                        .append("<").append(hasSetSpecPropertyName).append("> ")
+                        .append("?spec . ")
+                        .append("}");
+                final JQLConverter setJql = new JQLConverter(session, subjectTranslator, sparql.toString());
+                final ResultSet setResult = setJql.execute();
+                while (setResult.hasNext()) {
+                    final SetType set = this.objFactory.createSetType();
+                    QuerySolution sol = setResult.next();
+                    set.setSetName(sol.get("name").asLiteral().getString());
+                    set.setSetSpec(sol.get("spec").asLiteral().getString());
+                    sets.getSet().add(set);
+                }
+            }
+            oai.setListSets(sets);
+            return this.objFactory.createOAIPMH(oai);
+        }catch(Exception e) {
+            e.printStackTrace();
+            throw new RepositoryException(e);
+        }
+    }
+
+    public String createSet(Session session, InputStream src) throws RepositoryException {
+        try {
+            final SetType set = this.unmarshaller.unmarshal(new StreamSource(src), SetType.class).getValue();
+            final String setId = getSetId(set);
+            final FedoraObject setRoot = this.objectService.getObject(session, setsRootPath);
+            if (set.getSetSpec() != null) {
+                /* validate that the hierarchy of sets exists */
+            }
+
+            final FedoraObject setObject = this.objectService.createObject(session, setsRootPath + "/" + setId);
+
+            StringBuilder sparql =
+                    new StringBuilder("INSERT DATA {<" + subjectTranslator.getSubject(setRoot.getPath()) + "> <" +
+                            hasSetsPropertyName + "> <" + subjectTranslator.getSubject(setObject.getPath()) + ">}");
+            setRoot.updatePropertiesDataset(subjectTranslator, sparql.toString());
+
+            sparql.setLength(0);
+            sparql.append("INSERT DATA {")
+                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + hasSetNamePropertyName +
+                            "> '" + set.getSetName() + "' .")
+                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + hasSetSpecPropertyName +
+                            "> '" + set.getSetName() + "' .");
+            for (DescriptionType desc : set.getSetDescription()) {
+                // TODO: save description
+            }
+            sparql.append("}");
+            session.save();
+            return setObject.getPath();
+        } catch (JAXBException e) {
+            e.printStackTrace();
+            throw new RepositoryException(e);
+        }
+    }
+
+    private String getSetId(SetType set) throws RepositoryException {
+        if (set.getSetSpec() == null) {
+            throw new RepositoryException("SetSpec can not be empty");
+        }
+        String id = set.getSetSpec();
+        int colonPos = id.indexOf(':');
+        while (colonPos > 0) {
+            id=id.substring(colonPos + 1);
+        }
+        return id;
     }
 }

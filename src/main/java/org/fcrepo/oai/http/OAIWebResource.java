@@ -18,16 +18,16 @@ package org.fcrepo.oai.http;
 
 import static org.openarchives.oai._2.VerbType.*;
 
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -51,6 +51,14 @@ public class OAIWebResource {
 
     @Autowired
     private OAIProviderService providerService;
+
+    @POST
+    @Path("/sets")
+    @Consumes(MediaType.TEXT_XML)
+    public Response createSet(@Context final UriInfo uriInfo, final InputStream src) throws RepositoryException {
+        final String path = this.providerService.createSet(session, src);
+        return Response.created(URI.create(path)).build();
+    }
 
     @GET
     @Produces(MediaType.TEXT_XML)
@@ -85,10 +93,16 @@ public class OAIWebResource {
             return getRecord(uriInfo, identifier, metadataPrefix);
         } else if (verb.equals(LIST_IDENTIFIERS.value())) {
             return listIdentifiers(uriInfo, metadataPrefix, from, until, set, offset);
+        } else if (verb.equals(LIST_SETS.value())) {
+            return listSets(offset);
         } else {
             return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_VERB,
                     "The verb '" + verb + "' is invalid");
         }
+    }
+
+    private JAXBElement<OAIPMHtype> listSets(int offset) throws RepositoryException {
+        return providerService.listSets(session, offset);
     }
 
     private JAXBElement<OAIPMHtype> listIdentifiers(UriInfo uriInfo, String metadataPrefix, String from,

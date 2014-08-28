@@ -3,8 +3,14 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
     <bean name="oaiProviderService" class="org.fcrepo.oai.service.OAIProviderService">
-        <property name="identifyUri" value="info:fedora/oai/identify"/>
+        <property name="identifyPath" value="/oai/identify"/>
         <property name="maxListSize" value="5" />
+        <property name="setsEnabled" value="true" />
+        <property name="setsRootPath" value="/oai/setspec" />
+        <property name="setsPropertyName" value="http://fedora.info/definitions/v4/config#isPartOfOAISet" />
+        <property name="hasSetsPropertyName" value="http://fedora.info/definitions/v4/config#hasOAISet" />
+        <property name="hasSetNamePropertyName" value="http://fedora.info/definitions/v4/config#hasOAISetName" />
+        <property name="hasSetSpecPropertyName" value="http://fedora.info/definitions/v4/config#hasOAISetSpec" />
         <property name="metadataFormats">
             <map>
                 <entry key="oai_dc" value-ref="oaiDcFormat" />
