@@ -32,7 +32,7 @@ import javax.xml.bind.JAXBElement;
 public class GetRecordIT extends AbstractOAIProviderIT{
     @Test
     public void testGetNonExistingObjectRecord() throws Exception {
-        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), "non-existing-id", "oai_dc", null, null);
+        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), "non-existing-id", "oai_dc", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oai = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(1, oai.getError().size());
@@ -42,8 +42,8 @@ public class GetRecordIT extends AbstractOAIProviderIT{
     @Test
     public void testGetNonExistingOAIDCRecord() throws Exception {
         String objId = "oai-test-" + RandomStringUtils.randomAlphabetic(8);
-        createFedoraObject(objId, null);
-        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), objId, "oai_dc", null, null);
+        createFedoraObject(objId, null, null);
+        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), objId, "oai_dc", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oai = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(1, oai.getError().size());
@@ -52,8 +52,8 @@ public class GetRecordIT extends AbstractOAIProviderIT{
     @Test
     public void testGetNonExistingOAIDCDatastream() throws Exception {
         String objId = "oai-test-" + RandomStringUtils.randomAlphabetic(8);
-        createFedoraObject(objId, "non-exiting-ds-id");
-        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), objId, "oai_dc", null, null);
+        createFedoraObject(objId, "non-exiting-ds-id", null);
+        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), objId, "oai_dc", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oai = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(1, oai.getError().size());
@@ -65,8 +65,8 @@ public class GetRecordIT extends AbstractOAIProviderIT{
         String objId = "oai-test-" + RandomStringUtils.randomAlphabetic(8);
         String oaiDcId = "oai-dc-" + RandomStringUtils.randomAlphabetic(8);
         createOaiDcObject(oaiDcId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
-        createFedoraObject(objId, oaiDcId);
-        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), objId, "oai_dc", null, null);
+        createFedoraObject(objId, oaiDcId, null);
+        HttpResponse resp = getOAIPMHResponse(VerbType.GET_RECORD.value(), objId, "oai_dc", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oai = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(0, oai.getError().size());

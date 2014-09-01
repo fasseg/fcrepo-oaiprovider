@@ -43,43 +43,17 @@ import java.io.InputStream;
 
 public class ListSetsIT extends AbstractOAIProviderIT {
 
-    private static Unmarshaller unmarshaller;
-
-    private static Marshaller marshaller;
-
-    @BeforeClass
-    public static void setup() throws JAXBException {
-        JAXBContext ctx = JAXBContext.newInstance(SetType.class);
-        unmarshaller = ctx.createUnmarshaller();
-        marshaller = ctx.createMarshaller();
-    }
-
     @Test
     @SuppressWarnings("unchecked")
     public void testCreateSet() throws Exception {
-        final ObjectFactory fac = new ObjectFactory();
-        SetType set = fac.createSetType();
-        set.setSetName("My valuable Test set");
-        set.setSetSpec("test" + RandomStringUtils.randomAlphabetic(8));
-        HttpPost post = new HttpPost(serverAddress + "/oai/sets");
-        post.setEntity(new InputStreamEntity(toStream(set), ContentType.TEXT_XML));
-        HttpResponse resp = this.client.execute(post);
-        assertEquals(201, resp.getStatusLine().getStatusCode());
+        createSet("oai-test-set-" + RandomStringUtils.randomAlphabetic(16), null);
     }
 
     @Test
     @SuppressWarnings("unchecked")
     public void testCreateAndListSets() throws Exception {
-        final ObjectFactory fac = new ObjectFactory();
-        SetType set = fac.createSetType();
-        set.setSetName("My valuable Test set");
-        set.setSetSpec("test" + RandomStringUtils.randomAlphabetic(8));
-        HttpPost post = new HttpPost(serverAddress + "/oai/sets");
-        post.setEntity(new InputStreamEntity(toStream(set), ContentType.TEXT_XML));
-        HttpResponse resp = this.client.execute(post);
-        assertEquals(201, resp.getStatusLine().getStatusCode());
-
-        resp = getOAIPMHResponse(VerbType.LIST_SETS.value(), null, null, null, null);
+        createSet("oai-test-set-" + RandomStringUtils.randomAlphabetic(16), null);
+        HttpResponse resp = getOAIPMHResponse(VerbType.LIST_SETS.value(), null, null, null, null, null);
         OAIPMHtype oai = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(200, resp.getStatusLine().getStatusCode());
         assertEquals(0, oai.getError().size() );
@@ -88,11 +62,5 @@ public class ListSetsIT extends AbstractOAIProviderIT {
         assertTrue(oai.getListSets().getSet().size() > 0);
         assertNotNull(oai.getListSets().getSet().get(0).getSetName());
         assertNotNull(oai.getListSets().getSet().get(0).getSetSpec());
-    }
-
-    private static InputStream toStream(SetType set) throws JAXBException {
-        ByteArrayOutputStream sink = new ByteArrayOutputStream();
-        marshaller.marshal(new JAXBElement(new QName("set"), SetType.class, set), sink);
-        return new ByteArrayInputStream(sink.toByteArray());
     }
 }

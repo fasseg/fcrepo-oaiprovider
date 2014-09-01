@@ -338,28 +338,37 @@ public class OAIProviderService {
             return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, e.getMessage());
         }
         
-        if (set != null && !set.isEmpty() && !setsEnabled) {
-            return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.NO_SET_HIERARCHY, "Sets are not enabled");
-        }
-        
-        final List<String> filters = new ArrayList<>();
-        if (fromDateTime != null) {
-            filters.add("?date >='" + from + "'^^xsd:dateTime ");
-        }
-        if (untilDateTime!= null) {
-            filters.add("?date <='" + until + "'^^xsd:dateTime ");
-        }
         final StringBuilder sparql =
                 new StringBuilder("PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> ")
                         .append("SELECT ?sub ?obj WHERE { ")
                         .append("?sub <").append(mdf.getPropertyName()).append("> ?obj . ");
+
+        final List<String> filters = new ArrayList<>();
+
+        if (fromDateTime != null || untilDateTime != null) {
+            sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ");
+            if (fromDateTime != null) {
+                filters.add("?date >='" + from + "'^^xsd:dateTime ");
+            }
+            if (untilDateTime!= null) {
+                filters.add("?date <='" + until + "'^^xsd:dateTime ");
+            }
+        }
+
+        if (set != null && !set.isEmpty()) {
+            if (!setsEnabled) {
+                return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.NO_SET_HIERARCHY, "Sets are not enabled");
+            }
+            sparql.append("?sub <").append(setsPropertyName).append("> ?set . ");
+            filters.add("?set = '" + set + "'");
+        }
+
         int filterCount = 0;
         for (String filter:filters) {
             if (filterCount++ == 0) {
-                sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date ");
                 sparql.append("FILTER (");
             }
-            sparql.append(filter).append(filterCount == filters.size() ? ')' : " && ");
+            sparql.append(filter).append(filterCount == filters.size() ? ")" : " && ");
         }
         sparql.append("}")
                 .append(" OFFSET ").append(offset)

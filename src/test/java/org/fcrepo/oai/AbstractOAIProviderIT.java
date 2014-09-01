@@ -19,15 +19,14 @@ package org.fcrepo.oai;
 import static java.lang.Integer.parseInt;
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
+import java.io.*;
 
 import javax.annotation.PostConstruct;
 import javax.jcr.RepositoryException;
 import javax.xml.bind.*;
 import javax.xml.namespace.QName;
 
+import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -37,10 +36,12 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.fcrepo.oai.service.OAIProviderService;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.openarchives.oai._2.IdentifyType;
 import org.openarchives.oai._2.OAIPMHtype;
 import org.openarchives.oai._2.ObjectFactory;
+import org.openarchives.oai._2.SetType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.ContextConfiguration;
@@ -56,12 +57,12 @@ public abstract class AbstractOAIProviderIT {
 
     protected final ObjectFactory oaiFactory = new ObjectFactory();
 
-    protected final Unmarshaller unmarshaller;
-
-    protected final Marshaller marshaller;
-
     protected static final String serverAddress = "http://localhost:" +
             parseInt(System.getProperty("test.port", "8096"));
+
+    protected Unmarshaller unmarshaller;
+
+    protected Marshaller marshaller;
 
     @PostConstruct
     public void initTests() throws Exception {
@@ -112,43 +113,46 @@ public abstract class AbstractOAIProviderIT {
     }
 
     @SuppressWarnings("unchecked")
-    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix, String from, String until) throws IOException,
+    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix, String from, String until, String set) throws IOException,
             JAXBException {
         final StringBuilder url = new StringBuilder(serverAddress)
                 .append("/oai?verb=")
                 .append(verb);
 
         if (identifier != null && !identifier.isEmpty()) {
-            url.append("&identifier=")
-                    .append(identifier);
+            url.append("&identifier=").append(identifier);
         }
-
         if (metadataPrefix != null && !metadataPrefix.isEmpty()) {
-            url.append("&metadataPrefix=")
-                    .append(metadataPrefix);
+            url.append("&metadataPrefix=").append(metadataPrefix);
         }
         if (from != null && !from.isEmpty()) {
-            url.append("&from=")
-                    .append(from);
+            url.append("&from=").append(from);
         }
         if (until != null && !until.isEmpty()) {
-            url.append("&until=")
-                    .append(until);
+            url.append("&until=").append(until);
+        }
+        if (set != null && ! set.isEmpty()) {
+            url.append("&set=").append(set);
         }
 
         HttpGet get = new HttpGet(url.toString());
         return this.client.execute(get);
     }
 
-    public void createFedoraObject(String id, String oaiRecordId) throws IOException {
+    protected void createFedoraObject(String id, String oaiRecordId, String set) throws IOException {
         HttpPost post = new HttpPost(serverAddress + "/");
         post.addHeader("Slug",id);
         if (oaiRecordId != null) {
             StringBuilder sparql = new StringBuilder("INSERT {")
                     .append("<> ")
                     .append("<http://fedora.info/definitions/v4/config#hasOaiDCRecord> ")
-                    .append("<info:fedora/").append(oaiRecordId).append(">")
-                    .append("} WHERE {}");
+                    .append("<info:fedora/").append(oaiRecordId).append("> . ");
+            if (set != null && !set.isEmpty()) {
+                sparql.append("<> " )
+                        .append("<http://fedora.info/definitions/v4/config#isPartOfOAISet> ")
+                        .append("<info:fedora").append(oaiRecordId).append("> . ");
+            }
+            sparql.append("} WHERE {}");
             post.setEntity(new StringEntity(sparql.toString()));
             post.addHeader("Content-Type", "application/sparql-update");
         }
@@ -157,7 +161,7 @@ public abstract class AbstractOAIProviderIT {
         post.releaseConnection();
     }
 
-    public void createOaiDcObject(String oaiDcId, InputStream src) throws IOException {
+    protected void createOaiDcObject(String oaiDcId, InputStream src) throws Exception {
         HttpPost post = new HttpPost(serverAddress + "/");
         post.addHeader("Slug",oaiDcId);
         post.addHeader("Content-Type", "application/octet-stream");
@@ -166,4 +170,25 @@ public abstract class AbstractOAIProviderIT {
         assertEquals(201, resp.getStatusLine().getStatusCode());
         post.releaseConnection();
     }
+    protected void createSet(String setName, String setSpec) throws Exception{
+        final ObjectFactory fac = new ObjectFactory();
+        SetType set = fac.createSetType();
+        set.setSetName(setName);
+        if (setSpec != null) {
+            set.setSetSpec(setSpec);
+        } else {
+            set.setSetSpec(setName);
+        }
+        HttpPost post = new HttpPost(serverAddress + "/oai/sets");
+        post.setEntity(new InputStreamEntity(toStream(set), ContentType.TEXT_XML));
+        HttpResponse resp = this.client.execute(post);
+        assertEquals(201, resp.getStatusLine().getStatusCode());
+    }
+
+    private InputStream toStream(SetType set) throws JAXBException {
+        ByteArrayOutputStream sink = new ByteArrayOutputStream();
+        marshaller.marshal(new JAXBElement(new QName("set"), SetType.class, set), sink);
+        return new ByteArrayInputStream(sink.toByteArray());
+    }
+
 }
