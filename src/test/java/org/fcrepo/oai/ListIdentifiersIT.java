@@ -127,4 +127,19 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
         assertEquals(0, oaipmh.getError().size());
         assertTrue(oaipmh.getListIdentifiers().getHeader().size() > 0);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testListIdentifyRecordsUntilNoRecords() throws Exception {
+        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
+                RandomStringUtils.randomAlphabetic(16));
+
+        HttpResponse resp =
+                getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, "2012-12-13T01:00:00Z");
+        assertEquals(200, resp.getStatusLine().getStatusCode());
+        OAIPMHtype oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        assertEquals(1, oaipmh.getError().size());
+        assertEquals(OAIPMHerrorcodeType.NO_RECORDS_MATCH, oaipmh.getError().get(0).getCode());
+    }
 }

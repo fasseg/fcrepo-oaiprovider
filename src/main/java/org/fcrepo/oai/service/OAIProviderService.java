@@ -330,9 +330,16 @@ public class OAIProviderService {
                 new StringBuilder("PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> ")
                         .append("SELECT ?sub ?obj WHERE { ")
                         .append("?sub <").append(mdf.getPropertyName()).append("> ?obj . ");
-        if (fromDateTime != null) {
+        if (fromDateTime != null && untilDateTime != null) {
             sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ")
-                    .append("FILTER (?date >= \"2014-06-05T10:10:10+05:30\"^^xsd:dateTime)");
+                    .append("FILTER (?date >= \"" + from  + "\"^^xsd:dateTime && ")
+                    .append("?date <= \"" + until  + "\"^^xsd:dateTime)");
+        } else if (untilDateTime != null) {
+            sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ")
+                    .append("FILTER (?date <= \"" + until  + "\"^^xsd:dateTime)");
+        } else if (fromDateTime != null) {
+            sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ")
+                    .append("FILTER (?date >= \"" + from  + "\"^^xsd:dateTime)");
         }
         sparql.append("}")
                 .append(" OFFSET ").append(offset)
