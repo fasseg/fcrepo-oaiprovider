@@ -17,6 +17,7 @@
 package org.fcrepo.oai;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
 
 import javax.xml.bind.JAXBElement;
 
@@ -157,7 +158,11 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oaipmh =
                 ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
-        assertEquals(1, oaipmh.getError().size());
-        assertEquals(OAIPMHerrorcodeType.NO_RECORDS_MATCH, oaipmh.getError().get(0).getCode());
+        assertEquals(0, oaipmh.getError().size());
+        assertNotNull(oaipmh.getListIdentifiers());
+        assertNotNull(oaipmh.getListIdentifiers().getHeader());
+        assertEquals(1, oaipmh.getListIdentifiers().getHeader().size());
+        assertEquals(1, oaipmh.getListIdentifiers().getHeader().get(0).getSetSpec().size());
+        assertEquals(setName, oaipmh.getListIdentifiers().getHeader().get(0).getSetSpec().get(0));
     }
 }

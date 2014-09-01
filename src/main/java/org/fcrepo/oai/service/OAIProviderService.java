@@ -64,7 +64,7 @@ import com.hp.hpl.jena.rdf.model.*;
 
 public class OAIProviderService {
 
-    private final ObjectFactory objFactory;
+    private static final ObjectFactory oaiFactory = new ObjectFactory();
 
     private final DatatypeFactory dataFactory;
 
@@ -78,13 +78,13 @@ public class OAIProviderService {
 
     private String setsRootPath;
 
-    private String hasSetsPropertyName;
+    private String propertyHasSets;
 
-    private String hasSetNamePropertyName;
+    private String propertySetName;
 
-    private String hasSetSpecPropertyName;
+    private String propertyHasSetSpec;
 
-    private String setsPropertyName;
+    private String propertyIsPartOfSet;
 
     private boolean setsEnabled;
 
@@ -106,24 +106,24 @@ public class OAIProviderService {
     @Autowired
     private ObjectService objectService;
 
-    public void setHasSetSpecPropertyName(String hasSetSpecPropertyName) {
-        this.hasSetSpecPropertyName = hasSetSpecPropertyName;
+    public void setPropertyHasSetSpec(String propertyHasSetSpec) {
+        this.propertyHasSetSpec = propertyHasSetSpec;
     }
 
-    public void setHasSetNamePropertyName(String hasSetNamePropertyName) {
-        this.hasSetNamePropertyName = hasSetNamePropertyName;
+    public void setPropertySetName(String propertySetName) {
+        this.propertySetName = propertySetName;
     }
 
-    public void setHasSetsPropertyName(String hasSetsPropertyName) {
-        this.hasSetsPropertyName = hasSetsPropertyName;
+    public void setPropertyHasSets(String propertyHasSets) {
+        this.propertyHasSets = propertyHasSets;
     }
 
     public void setMaxListSize(int maxListSize) {
         this.maxListSize = maxListSize;
     }
 
-    public void setSetsPropertyName(String setsPropertyName) {
-        this.setsPropertyName = setsPropertyName;
+    public void setPropertyIsPartOfSet(String propertyIsPartOfSet) {
+        this.propertyIsPartOfSet = propertyIsPartOfSet;
     }
 
     public void setSetsRootPath(String setsRootPath) {
@@ -150,7 +150,6 @@ public class OAIProviderService {
 
     public OAIProviderService() throws DatatypeConfigurationException, JAXBException {
         this.dataFactory = DatatypeFactory.newInstance();
-        this.objFactory = new ObjectFactory();
         this.unmarshaller =
                 JAXBContext.newInstance(OAIPMHtype.class, IdentifyType.class, SetType.class).createUnmarshaller();
     }
@@ -161,15 +160,15 @@ public class OAIProviderService {
         final InputStream data = ds.getContent();
         final IdentifyType id = this.unmarshaller.unmarshal(new StreamSource(data), IdentifyType.class).getValue();
 
-        final RequestType req = objFactory.createRequestType();
+        final RequestType req = oaiFactory.createRequestType();
         req.setVerb(VerbType.IDENTIFY);
         req.setValue(uriInfo.getRequestUri().toASCIIString());
 
-        final OAIPMHtype oai = objFactory.createOAIPMHtype();
+        final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
         oai.setIdentify(id);
         oai.setResponseDate(dataFactory.newXMLGregorianCalendar(new GregorianCalendar()));
         oai.setRequest(req);
-        return objFactory.createOAIPMH(oai);
+        return oaiFactory.createOAIPMH(oai);
     }
 
     private String createSubject(String uri) throws RepositoryException {
@@ -179,7 +178,7 @@ public class OAIProviderService {
     public JAXBElement<OAIPMHtype> listMetadataFormats(final Session session, final UriInfo uriInfo,
             final String identifier) throws RepositoryException {
         final String path = createSubject(uriInfo);
-        final ListMetadataFormatsType listMetadataFormats = objFactory.createListMetadataFormatsType();
+        final ListMetadataFormatsType listMetadataFormats = oaiFactory.createListMetadataFormatsType();
         if (identifier != null && !identifier.isEmpty()) {
             /* generate metadata format response for a single pid */
             if (!this.objectService.exists(session, "/" + identifier)) {
@@ -201,14 +200,14 @@ public class OAIProviderService {
             listMetadataFormats.getMetadataFormat().addAll(listAvailableMetadataFormats());
         }
 
-        final RequestType req = objFactory.createRequestType();
+        final RequestType req = oaiFactory.createRequestType();
         req.setVerb(VerbType.LIST_METADATA_FORMATS);
         req.setValue(uriInfo.getRequestUri().toASCIIString());
 
-        final OAIPMHtype oai = objFactory.createOAIPMHtype();
+        final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
         oai.setListMetadataFormats(listMetadataFormats);
         oai.setRequest(req);
-        return objFactory.createOAIPMH(oai);
+        return oaiFactory.createOAIPMH(oai);
     }
 
     private List<MetadataFormatType> listObjectMetadataFormats(final Session session, final FedoraObject obj) throws RepositoryException {
@@ -219,7 +218,7 @@ public class OAIProviderService {
     private List<MetadataFormatType> listAvailableMetadataFormats() {
         final List<MetadataFormatType> types = new ArrayList<>(metadataFormats.size());
         for (MetadataFormat mdf : metadataFormats.values()) {
-            final MetadataFormatType mdft = objFactory.createMetadataFormatType();
+            final MetadataFormatType mdft = oaiFactory.createMetadataFormatType();
             mdft.setMetadataPrefix(mdf.getPrefix());
             mdft.setMetadataNamespace(mdf.getNamespace());
             mdft.setSchema(mdf.getSchemaUrl());
@@ -252,7 +251,7 @@ public class OAIProviderService {
         final FedoraObject obj = this.objectService.getObject(session, path);
         final Model model = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
         final StmtIterator it = model.listStatements(subjectTranslator.getSubject("/" + identifier),
-                model.createProperty("http://fedora.info/definitions/v4/config#", "hasOaiDCRecord"),
+                model.createProperty(format.getPropertyName()),
                 (RDFNode) null);
         if (!it.hasNext()) {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix, OAIPMHerrorcodeType.NO_RECORDS_MATCH,
@@ -264,25 +263,31 @@ public class OAIProviderService {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT,
                     "The referenced datastream for the meta data can not be found");
         }
+
         final Datastream mdDs =
                 this.datastreamService.getDatastream(session, dsPath);
-
-        final OAIPMHtype oai = this.objFactory.createOAIPMHtype();
-        final RequestType req = objFactory.createRequestType();
+        final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
+        final RequestType req = oaiFactory.createRequestType();
         req.setVerb(VerbType.GET_RECORD);
         req.setValue(uriInfo.getRequestUri().toASCIIString());
 
-        final GetRecordType getRecord = this.objFactory.createGetRecordType();
-        final RecordType record = this.objFactory.createRecordType();
+        final GetRecordType getRecord = oaiFactory.createGetRecordType();
+        final RecordType record = oaiFactory.createRecordType();
         getRecord.setRecord(record);
 
-        final HeaderType header = this.objFactory.createHeaderType();
+        final HeaderType header = oaiFactory.createHeaderType();
         header.setIdentifier(identifier);
         header.setDatestamp(dateFormat.print(new Date().getTime()));
+        final StmtIterator itSets = model.listStatements(subjectTranslator.getSubject("/" + identifier),
+                model.createProperty(propertyIsPartOfSet),
+                (RDFNode) null);
+        if (itSets.hasNext()) {
+            header.getSetSpec().add(itSets.next().getObject().asLiteral().getString());
+        }
         record.setHeader(header);
         // TODO: add set specs
 
-        final MetadataType md = this.objFactory.createMetadataType();
+        final MetadataType md = oaiFactory.createMetadataType();
         try {
             String content = IOUtils.toString(mdDs.getContent());
             md.setAny(new JAXBElement<String>(new QName(format.getPrefix()), String.class, content));
@@ -294,23 +299,23 @@ public class OAIProviderService {
         record.setMetadata(md);
 
         oai.setGetRecord(getRecord);
-        return this.objFactory.createOAIPMH(oai);
+        return oaiFactory.createOAIPMH(oai);
     }
 
-    public JAXBElement<OAIPMHtype> error(VerbType verb, String identifier, String metadataPrefix,
+    public static JAXBElement<OAIPMHtype> error(VerbType verb, String identifier, String metadataPrefix,
             OAIPMHerrorcodeType errorCode, String msg) {
-        final OAIPMHtype oai = this.objFactory.createOAIPMHtype();
-        final RequestType req = this.objFactory.createRequestType();
+        final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
+        final RequestType req = oaiFactory.createRequestType();
         req.setVerb(verb);
         req.setIdentifier(identifier);
         req.setMetadataPrefix(metadataPrefix);
         oai.setRequest(req);
 
-        final OAIPMHerrorType error = this.objFactory.createOAIPMHerrorType();
+        final OAIPMHerrorType error = oaiFactory.createOAIPMHerrorType();
         error.setCode(errorCode);
         error.setValue(msg);
         oai.getError().add(error);
-        return this.objFactory.createOAIPMH(oai);
+        return oaiFactory.createOAIPMH(oai);
     }
 
     private void checkRequestedMetadataPrefix(final String prefix) throws RepositoryException {
@@ -359,7 +364,7 @@ public class OAIProviderService {
             if (!setsEnabled) {
                 return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.NO_SET_HIERARCHY, "Sets are not enabled");
             }
-            sparql.append("?sub <").append(setsPropertyName).append("> ?set . ");
+            sparql.append("?sub <").append(propertyIsPartOfSet).append("> ?set . ");
             filters.add("?set = '" + set + "'");
         }
 
@@ -376,25 +381,35 @@ public class OAIProviderService {
         try {
             final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql.toString());
             final ResultSet result = jql.execute();
-            final OAIPMHtype oai = this.objFactory.createOAIPMHtype();
-            final ListIdentifiersType ids = this.objFactory.createListIdentifiersType();
+            final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
+            final ListIdentifiersType ids = oaiFactory.createListIdentifiersType();
             if (!result.hasNext()) {
                 return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.NO_RECORDS_MATCH,
                         "No record found");
             }
             while (result.hasNext()) {
-                final HeaderType h = this.objFactory.createHeaderType();
+                final HeaderType h = oaiFactory.createHeaderType();
                 final QuerySolution sol = result.next();
                 final Resource sub = sol.get("sub").asResource();
                 h.setIdentifier(sub.getURI());
                 final FedoraObject obj =
                         this.objectService.getObject(session, subjectTranslator.getPathFromSubject(sub));
                 h.setDatestamp(dateFormat.print(obj.getLastModifiedDate().getTime()));
-                // TODO: add sets
+                // get set names this object is part of
+                final Model objModel = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
+                final StmtIterator setNames = objModel.listStatements(subjectTranslator.getSubject(obj.getPath()), objModel.createProperty(propertyIsPartOfSet), (RDFNode) null);
+                while (setNames.hasNext()) {
+                    final FedoraObject setObject = this.objectService.getObject(session, setsRootPath + "/" + setNames.next().getObject().asLiteral().getString());
+                    final Model setObjectModel = setObject.getPropertiesDataset(subjectTranslator).getDefaultModel();
+                    final StmtIterator setSpec = setObjectModel.listStatements(subjectTranslator.getSubject(setObject.getPath()), objModel.createProperty(propertyHasSetSpec), (RDFNode) null);
+                    if (setSpec.hasNext()) {
+                        h.getSetSpec().add(setSpec.next().getObject().asLiteral().getString());
+                    }
+                }
                 ids.getHeader().add(h);
             }
 
-            final RequestType req = this.objFactory.createRequestType();
+            final RequestType req = oaiFactory.createRequestType();
             if (ids.getHeader().size() == maxListSize) {
                 req.setResumptionToken(encodeResumptionToken(VerbType.LIST_IDENTIFIERS.value(), metadataPrefix, from,
                         until, set,
@@ -404,7 +419,7 @@ public class OAIProviderService {
             req.setMetadataPrefix(metadataPrefix);
             oai.setRequest(req);
             oai.setListIdentifiers(ids);
-            return this.objFactory.createOAIPMH(oai);
+            return oaiFactory.createOAIPMH(oai);
         } catch (Exception e) {
             e.printStackTrace();
             throw new RepositoryException(e);
@@ -459,25 +474,25 @@ public class OAIProviderService {
             }
             final StringBuilder sparql = new StringBuilder("SELECT ?obj WHERE {")
                     .append("<").append(subjectTranslator.getSubject(setsRootPath)).append(">")
-                    .append("<").append(hasSetsPropertyName).append("> ?obj }");
+                    .append("<").append(propertyHasSets).append("> ?obj }");
             final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql.toString());
             final ResultSet result = jql.execute();
-            final OAIPMHtype oai = this.objFactory.createOAIPMHtype();
-            final ListSetsType sets = this.objFactory.createListSetsType();
+            final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
+            final ListSetsType sets = oaiFactory.createListSetsType();
             while (result.hasNext()) {
                 final Resource setRes = result.next().get("obj").asResource();
                 sparql.setLength(0);
                 sparql.append("SELECT ?name ?spec WHERE {")
                         .append("<").append(setRes).append("> ")
-                        .append("<").append(hasSetNamePropertyName).append("> ")
+                        .append("<").append(propertySetName).append("> ")
                         .append("?name ; ")
-                        .append("<").append(hasSetSpecPropertyName).append("> ")
+                        .append("<").append(propertyHasSetSpec).append("> ")
                         .append("?spec . ")
                         .append("}");
                 final JQLConverter setJql = new JQLConverter(session, subjectTranslator, sparql.toString());
                 final ResultSet setResult = setJql.execute();
                 while (setResult.hasNext()) {
-                    final SetType set = this.objFactory.createSetType();
+                    final SetType set = oaiFactory.createSetType();
                     QuerySolution sol = setResult.next();
                     set.setSetName(sol.get("name").asLiteral().getString());
                     set.setSetSpec(sol.get("spec").asLiteral().getString());
@@ -485,7 +500,7 @@ public class OAIProviderService {
                 }
             }
             oai.setListSets(sets);
-            return this.objFactory.createOAIPMH(oai);
+            return oaiFactory.createOAIPMH(oai);
         } catch (Exception e) {
             e.printStackTrace();
             throw new RepositoryException(e);
@@ -505,14 +520,14 @@ public class OAIProviderService {
 
             StringBuilder sparql =
                     new StringBuilder("INSERT DATA {<" + subjectTranslator.getSubject(setRoot.getPath()) + "> <" +
-                            hasSetsPropertyName + "> <" + subjectTranslator.getSubject(setObject.getPath()) + ">}");
+                            propertyHasSets + "> <" + subjectTranslator.getSubject(setObject.getPath()) + ">}");
             setRoot.updatePropertiesDataset(subjectTranslator, sparql.toString());
 
             sparql.setLength(0);
             sparql.append("INSERT DATA {")
-                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + hasSetNamePropertyName +
+                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + propertySetName +
                             "> '" + set.getSetName() + "' .")
-                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + hasSetSpecPropertyName +
+                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + propertyHasSetSpec +
                             "> '" + set.getSetName() + "' .");
             for (DescriptionType desc : set.getSetDescription()) {
                 // TODO: save description

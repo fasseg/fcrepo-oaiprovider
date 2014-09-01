@@ -150,7 +150,7 @@ public abstract class AbstractOAIProviderIT {
             if (set != null && !set.isEmpty()) {
                 sparql.append("<> " )
                         .append("<http://fedora.info/definitions/v4/config#isPartOfOAISet> ")
-                        .append("<info:fedora").append(oaiRecordId).append("> . ");
+                        .append("\"").append(set).append("\" .");
             }
             sparql.append("} WHERE {}");
             post.setEntity(new StringEntity(sparql.toString()));
