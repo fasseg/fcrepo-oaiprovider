@@ -479,6 +479,7 @@ public class OAIProviderService {
                 // TODO: save description
             }
             sparql.append("}");
+            setObject.updatePropertiesDataset(subjectTranslator, sparql.toString());
             session.save();
             return setObject.getPath();
         } catch (JAXBException e) {
