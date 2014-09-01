@@ -7,11 +7,12 @@
     <parent>
         <groupId>org.fcrepo</groupId>
         <artifactId>fcrepo</artifactId>
-        <version>4.0.0-beta-02-SNAPSHOT</version>
+        <version>4.0.0-beta-04-SNAPSHOT</version>
     </parent>
 
     <properties>
         <checkstyle.skip>true</checkstyle.skip>
+        <fcrepo.version>4.0.0-beta-04-SNAPSHOT</fcrepo.version>
     </properties>
 
     <artifactId>fcrepo-oaiprovider</artifactId>
@@ -21,25 +22,31 @@
         <dependency>
             <groupId>org.fcrepo</groupId>
             <artifactId>fcrepo-http-commons</artifactId>
-            <version>4.0.0-beta-02-SNAPSHOT</version>
+            <version>${fcrepo.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.0.1</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.fcrepo</groupId>
             <artifactId>fcrepo-http-commons</artifactId>
-            <version>4.0.0-beta-02-SNAPSHOT</version>
+            <version>${fcrepo.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.fcrepo</groupId>
             <artifactId>fcrepo-auth-common</artifactId>
-            <version>4.0.0-beta-02-SNAPSHOT</version>
+            <version>${fcrepo.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.fcrepo</groupId>
             <artifactId>fcrepo-http-api</artifactId>
-            <version>4.0.0-beta-02-SNAPSHOT</version>
+            <version>${fcrepo.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -50,7 +57,7 @@
         <dependency>
             <groupId>org.fcrepo</groupId>
             <artifactId>fcrepo-transform</artifactId>
-            <version>4.0.0-beta-02-SNAPSHOT</version>
+            <version>${fcrepo.version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.grizzly</groupId>

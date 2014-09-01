@@ -86,6 +86,8 @@ public class ListSetsIT extends AbstractOAIProviderIT {
         assertNotNull(oai.getListSets());
         assertNotNull(oai.getListSets().getSet());
         assertTrue(oai.getListSets().getSet().size() > 0);
+        assertNotNull(oai.getListSets().getSet().get(0).getSetName());
+        assertNotNull(oai.getListSets().getSet().get(0).getSetSpec());
     }
 
     private static InputStream toStream(SetType set) throws JAXBException {
