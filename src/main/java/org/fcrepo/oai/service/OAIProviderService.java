@@ -319,27 +319,40 @@ public class OAIProviderService {
 
     public JAXBElement<OAIPMHtype> listIdentifiers(Session session, UriInfo uriInfo, String metadataPrefix,
             String from, String until, String set, int offset) throws RepositoryException {
+        if (metadataPrefix == null) {
+            return error(VerbType.LIST_IDENTIFIERS, null, null, OAIPMHerrorcodeType.BAD_ARGUMENT, "metadataprefix is invalid");
+        }
         final MetadataFormat mdf = metadataFormats.get(metadataPrefix);
         if (mdf == null) {
             return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix,
                     OAIPMHerrorcodeType.CANNOT_DISSEMINATE_FORMAT, "Unavailable metadata format");
         }
-        final DateTime fromDateTime = (from != null && !from.isEmpty()) ? dateFormat.parseDateTime(from) : null;
-        final DateTime untilDateTime = (until != null && !until.isEmpty()) ? dateFormat.parseDateTime(until) : null;
+        DateTime fromDateTime = null;
+        DateTime untilDateTime = null;
+        try {
+            fromDateTime = (from != null && !from.isEmpty()) ? dateFormat.parseDateTime(from) : null;
+            untilDateTime = (until != null && !until.isEmpty()) ? dateFormat.parseDateTime(until) : null;
+        } catch (IllegalArgumentException e) {
+            return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, e.getMessage());
+        }
+        final List<String> filters = new ArrayList<>();
+        if (fromDateTime != null) {
+            filters.add("?date >='" + from + "'^^xsd:dateTime ");
+        }
+        if (untilDateTime!= null) {
+            filters.add("?date <='" + until + "'^^xsd:dateTime ");
+        }
         final StringBuilder sparql =
                 new StringBuilder("PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> ")
                         .append("SELECT ?sub ?obj WHERE { ")
                         .append("?sub <").append(mdf.getPropertyName()).append("> ?obj . ");
-        if (fromDateTime != null && untilDateTime != null) {
-            sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ")
-                    .append("FILTER (?date >= \"" + from  + "\"^^xsd:dateTime && ")
-                    .append("?date <= \"" + until  + "\"^^xsd:dateTime)");
-        } else if (untilDateTime != null) {
-            sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ")
-                    .append("FILTER (?date <= \"" + until  + "\"^^xsd:dateTime)");
-        } else if (fromDateTime != null) {
-            sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date . ")
-                    .append("FILTER (?date >= \"" + from  + "\"^^xsd:dateTime)");
+        int filterCount = 0;
+        for (String filter:filters) {
+            if (filterCount++ == 0) {
+                sparql.append("?sub <").append(RdfLexicon.LAST_MODIFIED_DATE).append("> ?date ");
+                sparql.append("FILTER (");
+            }
+            sparql.append(filter).append(filterCount == filters.size() ? ')' : " && ");
         }
         sparql.append("}")
                 .append(" OFFSET ").append(offset)

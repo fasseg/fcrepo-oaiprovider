@@ -37,6 +37,7 @@ import org.fcrepo.oai.ResumptionToken;
 import org.fcrepo.oai.service.OAIProviderService;
 import org.openarchives.oai._2.OAIPMHerrorcodeType;
 import org.openarchives.oai._2.OAIPMHtype;
+import org.openarchives.oai._2.VerbType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -85,19 +86,56 @@ public class OAIWebResource {
                 throw new RepositoryException(e);
             }
         }
+        if (verb == null) {
+            return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT,
+                    "Verb is required");
+        }
         if (verb.equals(IDENTIFY.value())) {
+            try {
+                verifyEmpty(identifier, metadataPrefix, from, until, set);
+            }catch(IllegalArgumentException e) {
+                return providerService.error(VerbType.IDENTIFY, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
+            }
             return identifyRepository(uriInfo);
         } else if (verb.equals(LIST_METADATA_FORMATS.value())) {
+            try {
+                verifyEmpty(identifier, metadataPrefix, from, until, set);
+            }catch(IllegalArgumentException e) {
+                return providerService.error(VerbType.LIST_METADATA_FORMATS, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
+            }
             return metadataFormats(uriInfo, identifier);
         } else if (verb.equals(GET_RECORD.value())) {
+            try {
+                verifyEmpty(from, until, set);
+            }catch(IllegalArgumentException e) {
+                return providerService.error(VerbType.GET_RECORD, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
+            }
             return getRecord(uriInfo, identifier, metadataPrefix);
         } else if (verb.equals(LIST_IDENTIFIERS.value())) {
+            try {
+                verifyEmpty(identifier);
+            }catch(IllegalArgumentException e) {
+                return providerService.error(VerbType.LIST_IDENTIFIERS, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
+            }
             return listIdentifiers(uriInfo, metadataPrefix, from, until, set, offset);
         } else if (verb.equals(LIST_SETS.value())) {
+            try {
+                verifyEmpty(identifier);
+            }catch(IllegalArgumentException e) {
+                return providerService.error(VerbType.LIST_SETS, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
+            }
             return listSets(offset);
         } else {
             return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_VERB,
                     "The verb '" + verb + "' is invalid");
+        }
+    }
+
+    private void verifyEmpty(String ... data) throws IllegalArgumentException{
+        for (String s:data) {
+            if (s != null && !s.isEmpty())  {
+                throw new IllegalArgumentException("Wrong argument for method");
+            }
         }
     }
 
