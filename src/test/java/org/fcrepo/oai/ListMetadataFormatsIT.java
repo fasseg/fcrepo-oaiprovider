@@ -47,7 +47,7 @@ public class ListMetadataFormatsIT extends AbstractOAIProviderIT{
 
     @Test
     public void testListNonExistingObjectMetadataTypes() throws Exception {
-        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), "non-existing-pid", null, null, null);
+        HttpResponse resp  = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), "non-existing-pid", "oai_dc", null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
 
         OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();

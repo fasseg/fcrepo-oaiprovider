@@ -18,7 +18,6 @@ package org.fcrepo.oai.service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -192,10 +191,13 @@ public class OAIProviderService {
             for (MetadataFormat mdf : metadataFormats.values()) {
                 if (model.listObjectsOfProperty(rdfModel.createProperty(mdf.getPropertyName())).hasNext()) {
                     listMetadataFormats.getMetadataFormat().add(mdf.asMetadataFormatType());
+                } else {
+                    return error(VerbType.LIST_METADATA_FORMATS, identifier, null,
+                            OAIPMHerrorcodeType.NO_METADATA_FORMATS, "No metadata available");
                 }
             }
         } else {
-            /* generate a general metadataformat respose */
+            /* generate a general metadata format response */
             listMetadataFormats.getMetadataFormat().addAll(listAvailableMetadataFormats());
         }
 
@@ -335,6 +337,11 @@ public class OAIProviderService {
         } catch (IllegalArgumentException e) {
             return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, e.getMessage());
         }
+        
+        if (set != null && !set.isEmpty() && !setsEnabled) {
+            return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.NO_SET_HIERARCHY, "Sets are not enabled");
+        }
+        
         final List<String> filters = new ArrayList<>();
         if (fromDateTime != null) {
             filters.add("?date >='" + from + "'^^xsd:dateTime ");
@@ -438,6 +445,9 @@ public class OAIProviderService {
 
     public JAXBElement<OAIPMHtype> listSets(Session session, int offset) throws RepositoryException {
         try {
+            if (!setsEnabled) {
+                return error(VerbType.LIST_SETS, null, null, OAIPMHerrorcodeType.NO_SET_HIERARCHY, "Set are not enabled");
+            }
             final StringBuilder sparql = new StringBuilder("SELECT ?obj WHERE {")
                     .append("<").append(subjectTranslator.getSubject(setsRootPath)).append(">")
                     .append("<").append(hasSetsPropertyName).append("> ?obj }");
@@ -467,7 +477,7 @@ public class OAIProviderService {
             }
             oai.setListSets(sets);
             return this.objFactory.createOAIPMH(oai);
-        }catch(Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RepositoryException(e);
         }
@@ -515,7 +525,7 @@ public class OAIProviderService {
         String id = set.getSetSpec();
         int colonPos = id.indexOf(':');
         while (colonPos > 0) {
-            id=id.substring(colonPos + 1);
+            id = id.substring(colonPos + 1);
         }
         return id;
     }

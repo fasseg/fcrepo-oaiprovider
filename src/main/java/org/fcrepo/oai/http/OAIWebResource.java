@@ -82,8 +82,8 @@ public class OAIWebResource {
                 set = token.getSet();
                 metadataPrefix = token.getMetadataPrefix();
                 offset = token.getOffset();
-            } catch (UnsupportedEncodingException e) {
-                throw new RepositoryException(e);
+            } catch (Exception e) {
+                return providerService.error(null, null, null, OAIPMHerrorcodeType.BAD_RESUMPTION_TOKEN, "Resumption token is invalid");
             }
         }
         if (verb == null) {
@@ -99,7 +99,7 @@ public class OAIWebResource {
             return identifyRepository(uriInfo);
         } else if (verb.equals(LIST_METADATA_FORMATS.value())) {
             try {
-                verifyEmpty(identifier, metadataPrefix, from, until, set);
+                verifyEmpty(from, until, set);
             }catch(IllegalArgumentException e) {
                 return providerService.error(VerbType.LIST_METADATA_FORMATS, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
             }
