@@ -32,12 +32,14 @@ Installation
 <param-value>WEB-INF/classes/spring/master.xml WEB-INF/classes/spring/oaiprovider.xml</param-value>
 ```
 
-Links
------
+Technoblabber
+-------------
+The OAI Provider exposes an endpoint at `/oai` which accepts OAI conforming HTTP requests.
+A Fedora object containing the set information is created at `/oai/setspec`.
+For Set creation an endpoint at `/oai/sets` is exposed which accepts HTTP POST requests containing serialized Set information adhering to the OAI schema. (see `src/test/test-data/set.xml`).
 
-The provider depends on links to Datastreams and OAI Set objects to generate OAI responses
- 
-The graph should look like this:
+The provider depends on links to Datastreams and OAI Set objects to generate OAI responses.
+A graph linking a Fedora Object to it's OAI DC Datastream should look like this:
 
                                                 +----------+
                                                 | MyObject | 
@@ -87,7 +89,6 @@ Example
 #> curl "http://localhost:8080/fcrepo/rest/oai?verb=ListIdentifiers&metadataPrefix=oai_dc"
 #> curl "http://localhost:8080/fcrepo/rest/oai?verb=ListSets"
 #> curl "http://localhost:8080/fcrepo/rest/oai?verb=ListIdentifiers&metadataPrefix=oai_dc&set=MyOAISet"
-
 ```
 
 
