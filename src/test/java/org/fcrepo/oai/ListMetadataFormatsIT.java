@@ -18,7 +18,6 @@ package org.fcrepo.oai;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.junit.Test;
-import org.openarchives.oai._2.OAIPMHerrorType;
 import org.openarchives.oai._2.OAIPMHerrorcodeType;
 import org.openarchives.oai._2.OAIPMHtype;
 import org.openarchives.oai._2.VerbType;

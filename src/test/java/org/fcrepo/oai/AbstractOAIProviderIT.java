@@ -140,8 +140,11 @@ public abstract class AbstractOAIProviderIT {
     }
 
     protected void createFedoraObject(String id, String oaiRecordId, String set) throws IOException {
+
+        // create the Fedora Object
         HttpPost post = new HttpPost(serverAddress + "/");
         post.addHeader("Slug",id);
+
         if (oaiRecordId != null) {
             StringBuilder sparql = new StringBuilder("INSERT {")
                     .append("<> ")

@@ -21,12 +21,8 @@ import static org.junit.Assert.assertNotNull;
 
 import javax.xml.bind.JAXBElement;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.InputStreamEntity;
 import org.junit.Test;
 import org.openarchives.oai._2.*;
 
@@ -151,7 +147,7 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
         final String setName = "oai-test-set-" + RandomStringUtils.randomAlphabetic(16);
         createSet(setName, null);
         createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
-                RandomStringUtils.randomAlphabetic(16) , setName);
+                RandomStringUtils.randomAlphabetic(16), setName);
 
         HttpResponse resp =
                 getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null, setName);

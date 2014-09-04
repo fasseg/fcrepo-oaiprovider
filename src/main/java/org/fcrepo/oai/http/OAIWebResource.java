@@ -125,10 +125,21 @@ public class OAIWebResource {
                 return providerService.error(VerbType.LIST_SETS, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
             }
             return listSets(offset);
+        } else if (verb.equals(LIST_RECORDS.value())) {
+            try {
+                verifyEmpty(identifier);
+            }catch(IllegalArgumentException e) {
+                return providerService.error(VerbType.LIST_SETS, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
+            }
+            return listRecords(uriInfo, metadataPrefix, from, until, set, offset);
         } else {
             return providerService.error(null, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_VERB,
                     "The verb '" + verb + "' is invalid");
         }
+    }
+
+    private JAXBElement<OAIPMHtype> listRecords(UriInfo uriInfo, String metadataPrefix, String from, String until, String set, int offset) throws RepositoryException {
+        return providerService.listRecords(this.session, uriInfo, metadataPrefix, from, until, set, offset);
     }
 
     private void verifyEmpty(String ... data) throws IllegalArgumentException{
