@@ -61,8 +61,8 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecords() throws Exception {
         String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
-        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
+        createFedoraObjectWithOaiRecord("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null, this
+                .getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
 
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
@@ -81,8 +81,8 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     public void testListIdentifyRecordsResumption() throws Exception {
         for (int i = 0; i < 6; i++) {
             String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
-            createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
-            createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
+            createFedoraObjectWithOaiRecord("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null, this
+                    .getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
         }
 
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null, null);
@@ -114,8 +114,8 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecordsFrom() throws Exception {
         String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
-        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
+        createFedoraObjectWithOaiRecord("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null, this
+                .getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
 
         HttpResponse resp =
                 getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", "2012-12-13T01:00:00Z", null,
@@ -135,8 +135,8 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecordsUntilNoRecords() throws Exception {
         String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
-        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
+        createFedoraObjectWithOaiRecord("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null, this
+                .getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
 
         HttpResponse resp =
                 getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, "2012-12-13T01:00:00Z",
@@ -154,8 +154,8 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
         final String setName = "oai-test-set-" + RandomStringUtils.randomAlphabetic(16);
         String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
         createSet(setName, null);
-        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16),oaiId, setName);
+        createFedoraObjectWithOaiRecord("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, setName, this
+                .getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
 
         HttpResponse resp =
                 getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null, setName);

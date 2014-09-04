@@ -22,11 +22,9 @@ import static org.junit.Assert.assertEquals;
 import java.io.*;
 
 import javax.annotation.PostConstruct;
-import javax.jcr.RepositoryException;
 import javax.xml.bind.*;
 import javax.xml.namespace.QName;
 
-import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -35,8 +33,6 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.fcrepo.oai.service.OAIProviderService;
-import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.openarchives.oai._2.IdentifyType;
 import org.openarchives.oai._2.OAIPMHtype;
@@ -104,6 +100,7 @@ public abstract class AbstractOAIProviderIT {
             throw new RuntimeException("Unable to create JAX-B context");
         }
     }
+
     public HttpResponse getOAIPMHResponse(String tokenData) throws IOException, JAXBException {
         final StringBuilder url = new StringBuilder(serverAddress)
                 .append("/oai?resumptionToken=")
@@ -113,7 +110,8 @@ public abstract class AbstractOAIProviderIT {
     }
 
     @SuppressWarnings("unchecked")
-    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix, String from, String until, String set) throws IOException,
+    public HttpResponse getOAIPMHResponse(String verb, String identifier, String metadataPrefix, String from,
+            String until, String set) throws IOException,
             JAXBException {
         final StringBuilder url = new StringBuilder(serverAddress)
                 .append("/oai?verb=")
@@ -131,7 +129,7 @@ public abstract class AbstractOAIProviderIT {
         if (until != null && !until.isEmpty()) {
             url.append("&until=").append(until);
         }
-        if (set != null && ! set.isEmpty()) {
+        if (set != null && !set.isEmpty()) {
             url.append("&set=").append(set);
         }
 
@@ -139,19 +137,27 @@ public abstract class AbstractOAIProviderIT {
         return this.client.execute(get);
     }
 
-    protected void createFedoraObject(String id, String oaiRecordId, String set) throws IOException {
+    protected void createFedoraObject(String id) throws Exception {
+        this.createFedoraObjectWithOaiRecord(id, null, null, null);
+    }
+
+    protected void createFedoraObjectWithOaiRecord(String id, String oaiRecordId, String set, InputStream src)
+            throws Exception {
+        if (oaiRecordId != null && src != null) {
+            createOaiDcObject(oaiRecordId, src);
+        }
 
         // create the Fedora Object
         HttpPost post = new HttpPost(serverAddress + "/");
-        post.addHeader("Slug",id);
+        post.addHeader("Slug", id);
 
         if (oaiRecordId != null) {
             StringBuilder sparql = new StringBuilder("INSERT {")
                     .append("<> ")
                     .append("<http://fedora.info/definitions/v4/config#hasOaiDCRecord> ")
-                    .append("<info:fedora/").append(oaiRecordId).append("> . ");
+                    .append("<").append(serverAddress).append("/").append(oaiRecordId).append("> . ");
             if (set != null && !set.isEmpty()) {
-                sparql.append("<> " )
+                sparql.append("<> ")
                         .append("<http://fedora.info/definitions/v4/config#isPartOfOAISet> ")
                         .append("\"").append(set).append("\" .");
             }
@@ -164,16 +170,17 @@ public abstract class AbstractOAIProviderIT {
         post.releaseConnection();
     }
 
-    protected void createOaiDcObject(String oaiDcId, InputStream src) throws Exception {
+    private void createOaiDcObject(String oaiDcId, InputStream src) throws Exception {
         HttpPost post = new HttpPost(serverAddress + "/");
-        post.addHeader("Slug",oaiDcId);
+        post.addHeader("Slug", oaiDcId);
         post.addHeader("Content-Type", "application/octet-stream");
         post.setEntity(new InputStreamEntity(src));
         HttpResponse resp = this.client.execute(post);
         assertEquals(201, resp.getStatusLine().getStatusCode());
         post.releaseConnection();
     }
-    protected void createSet(String setName, String setSpec) throws Exception{
+
+    protected void createSet(String setName, String setSpec) throws Exception {
         final ObjectFactory fac = new ObjectFactory();
         SetType set = fac.createSetType();
         set.setSetName(setName);

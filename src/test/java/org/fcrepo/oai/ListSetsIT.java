@@ -16,30 +16,15 @@
 
 package org.fcrepo.oai;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
-import javax.xml.bind.*;
-import javax.xml.namespace.QName;
+import javax.xml.bind.JAXBElement;
 
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.util.EntityUtils;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openarchives.oai._2.OAIPMHtype;
-import org.openarchives.oai._2.ObjectFactory;
-import org.openarchives.oai._2.SetType;
 import org.openarchives.oai._2.VerbType;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 
 public class ListSetsIT extends AbstractOAIProviderIT {
 
@@ -54,9 +39,10 @@ public class ListSetsIT extends AbstractOAIProviderIT {
     public void testCreateAndListSets() throws Exception {
         createSet("oai-test-set-" + RandomStringUtils.randomAlphabetic(16), null);
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_SETS.value(), null, null, null, null, null);
-        OAIPMHtype oai = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        OAIPMHtype oai =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(200, resp.getStatusLine().getStatusCode());
-        assertEquals(0, oai.getError().size() );
+        assertEquals(0, oai.getError().size());
         assertNotNull(oai.getListSets());
         assertNotNull(oai.getListSets().getSet());
         assertTrue(oai.getListSets().getSet().size() > 0);

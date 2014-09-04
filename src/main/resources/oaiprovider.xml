@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+    <bean name="oaiProviderService" class="org.fcrepo.oai.service.OAIProviderService">
+        <property name="identifyPath" value="/oai/identify"/>
+        <property name="maxListSize" value="5" />
+        <property name="setsEnabled" value="true" />
+        <property name="setsRootPath" value="/oai/setspec" />
+        <property name="propertyIsPartOfSet" value="http://fedora.info/definitions/v4/config#isPartOfOAISet" />
+        <property name="propertyHasSets" value="http://fedora.info/definitions/v4/config#hasOAISet" />
+        <property name="propertySetName" value="http://fedora.info/definitions/v4/config#hasOAISetName" />
+        <property name="propertyHasSetSpec" value="http://fedora.info/definitions/v4/config#hasOAISetSpec" />
+        <property name="metadataFormats">
+            <map>
+                <entry key="oai_dc" value-ref="oaiDcFormat" />
+            </map>
+        </property>
+    </bean>
+
+    <bean name="oaiDcFormat" class="org.fcrepo.oai.MetadataFormat" >
+        <property name="prefix" value="oai_dc" />
+        <property name="schemaUrl" value="http://www.openarchives.org/OAI/2.0/oai_dc.xsd" />
+        <property name="namespace" value="http://www.openarchives.org/OAI/2.0/oai_dc/" />
+        <property name="propertyName" value="http://fedora.info/definitions/v4/config#hasOaiDCRecord" />
+    </bean>
+
+</beans>

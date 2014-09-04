@@ -19,12 +19,12 @@ package org.fcrepo.oai;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import javax.xml.bind.JAXBElement;
+
 import org.apache.http.HttpResponse;
 import org.junit.Test;
 import org.openarchives.oai._2.OAIPMHtype;
 import org.openarchives.oai._2.VerbType;
-
-import javax.xml.bind.JAXBElement;
 
 public class IdentifyIT extends AbstractOAIProviderIT {
 
@@ -33,7 +33,8 @@ public class IdentifyIT extends AbstractOAIProviderIT {
     public void testIdentify() throws Exception {
         HttpResponse resp = getOAIPMHResponse(VerbType.IDENTIFY.value(), null, null, null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
-        OAIPMHtype oaipmh = ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
+        OAIPMHtype oaipmh =
+                ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
         assertEquals(0, oaipmh.getError().size());
         assertNotNull(oaipmh.getIdentify());
         assertNotNull(oaipmh.getRequest());

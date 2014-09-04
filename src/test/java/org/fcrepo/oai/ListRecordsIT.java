@@ -48,9 +48,8 @@ public class ListRecordsIT extends AbstractOAIProviderIT {
     @SuppressWarnings("unchecked")
     public void testListRecords() throws Exception {
         final String oaidcId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
-        this.createOaiDcObject(oaidcId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
-        this.createFedoraObject("oai-test-obj" + RandomStringUtils.randomAlphabetic(16),
-               oaidcId, null);
+        createFedoraObjectWithOaiRecord("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaidcId, null, this
+                .getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
         HttpResponse resp =
                 getOAIPMHResponse(VerbType.LIST_RECORDS.value(), null, "oai_dc", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());

@@ -57,7 +57,7 @@ public class OAIWebResource {
     @Path("/sets")
     @Consumes(MediaType.TEXT_XML)
     public Response createSet(@Context final UriInfo uriInfo, final InputStream src) throws RepositoryException {
-        final String path = this.providerService.createSet(session, src);
+        final String path = this.providerService.createSet(session, uriInfo, src);
         return Response.created(URI.create(path)).build();
     }
 
@@ -124,7 +124,7 @@ public class OAIWebResource {
             }catch(IllegalArgumentException e) {
                 return providerService.error(VerbType.LIST_SETS, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT, "Invalid arguments");
             }
-            return listSets(offset);
+            return listSets(uriInfo, offset);
         } else if (verb.equals(LIST_RECORDS.value())) {
             try {
                 verifyEmpty(identifier);
@@ -150,8 +150,8 @@ public class OAIWebResource {
         }
     }
 
-    private JAXBElement<OAIPMHtype> listSets(int offset) throws RepositoryException {
-        return providerService.listSets(session, offset);
+    private JAXBElement<OAIPMHtype> listSets(UriInfo uriInfo, int offset) throws RepositoryException {
+        return providerService.listSets(session, uriInfo, offset);
     }
 
     private JAXBElement<OAIPMHtype> listIdentifiers(UriInfo uriInfo, String metadataPrefix, String from,

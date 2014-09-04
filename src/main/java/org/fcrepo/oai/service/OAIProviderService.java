@@ -39,6 +39,8 @@ import javax.xml.transform.stream.StreamSource;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.fcrepo.http.api.FedoraNodes;
+import org.fcrepo.http.commons.api.rdf.HttpIdentifierTranslator;
 import org.fcrepo.http.commons.session.SessionFactory;
 import org.fcrepo.kernel.Datastream;
 import org.fcrepo.kernel.FedoraObject;
@@ -50,6 +52,7 @@ import org.fcrepo.kernel.services.NodeService;
 import org.fcrepo.kernel.services.ObjectService;
 import org.fcrepo.oai.MetadataFormat;
 import org.fcrepo.oai.ResumptionToken;
+import org.fcrepo.oai.http.OAIWebResource;
 import org.fcrepo.transform.sparql.JQLConverter;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -69,8 +72,6 @@ public class OAIProviderService {
     private final DatatypeFactory dataFactory;
 
     private final Unmarshaller unmarshaller;
-
-    private final IdentifierTranslator subjectTranslator = new DefaultIdentifierTranslator();
 
     private final Model rdfModel = ModelFactory.createDefaultModel();
 
@@ -171,13 +172,10 @@ public class OAIProviderService {
         return oaiFactory.createOAIPMH(oai);
     }
 
-    private String createSubject(String uri) throws RepositoryException {
-        return subjectTranslator.getPathFromSubject(rdfModel.createResource(uri));
-    }
-
     public JAXBElement<OAIPMHtype> listMetadataFormats(final Session session, final UriInfo uriInfo,
             final String identifier) throws RepositoryException {
-        final String path = createSubject(uriInfo);
+        final HttpIdentifierTranslator translator =
+                new HttpIdentifierTranslator(session, FedoraNodes.class, uriInfo);
         final ListMetadataFormatsType listMetadataFormats = oaiFactory.createListMetadataFormatsType();
         if (identifier != null && !identifier.isEmpty()) {
             /* generate metadata format response for a single pid */
@@ -186,7 +184,7 @@ public class OAIProviderService {
                         "The object does not exist");
             }
             final FedoraObject obj = this.objectService.getObject(session, "/" + identifier);
-            final Model model = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
+            final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
             for (MetadataFormat mdf : metadataFormats.values()) {
                 if (model.listObjectsOfProperty(rdfModel.createProperty(mdf.getPropertyName())).hasNext()) {
                     listMetadataFormats.getMetadataFormat().add(mdf.asMetadataFormatType());
@@ -231,12 +229,9 @@ public class OAIProviderService {
         this.metadataFormats = metadataFormats;
     }
 
-    public String createSubject(final UriInfo uriInfo) throws RepositoryException {
-        return subjectTranslator.getPathFromSubject(rdfModel.createResource(uriInfo.getRequestUri().toASCIIString()));
-    }
-
     public JAXBElement<OAIPMHtype> getRecord(final Session session, final UriInfo uriInfo, final String identifier,
             final String metadataPrefix) throws RepositoryException {
+        final HttpIdentifierTranslator translator = new HttpIdentifierTranslator(session, OAIWebResource.class, uriInfo);
         final MetadataFormat format = metadataFormats.get(metadataPrefix);
         if (format == null) {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix,
@@ -249,8 +244,8 @@ public class OAIProviderService {
                     "The requested identifier does not exist");
         }
         final FedoraObject obj = this.objectService.getObject(session, path);
-        final Model model = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
-        final StmtIterator it = model.listStatements(subjectTranslator.getSubject("/" + identifier),
+        final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
+        final StmtIterator it = model.listStatements(translator.getSubject("/" + identifier),
                 model.createProperty(format.getPropertyName()),
                 (RDFNode) null);
         if (!it.hasNext()) {
@@ -258,7 +253,7 @@ public class OAIProviderService {
                     "The record does not have a oai meta data object associated");
         }
 
-        final String dsPath = subjectTranslator.getPathFromSubject(it.next().getObject().asResource());
+        final String dsPath = translator.getPathFromSubject(it.next().getObject().asResource());
         if (!this.datastreamService.exists(session, dsPath)) {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix, OAIPMHerrorcodeType.BAD_ARGUMENT,
                     "The referenced datastream for the meta data can not be found");
@@ -278,7 +273,7 @@ public class OAIProviderService {
         final HeaderType header = oaiFactory.createHeaderType();
         header.setIdentifier(identifier);
         header.setDatestamp(dateFormat.print(new Date().getTime()));
-        final StmtIterator itSets = model.listStatements(subjectTranslator.getSubject("/" + identifier),
+        final StmtIterator itSets = model.listStatements(translator.getSubject("/" + identifier),
                 model.createProperty(propertyIsPartOfSet),
                 (RDFNode) null);
         if (itSets.hasNext()) {
@@ -327,6 +322,8 @@ public class OAIProviderService {
     public JAXBElement<OAIPMHtype> listIdentifiers(Session session, UriInfo uriInfo, String metadataPrefix,
             String from, String until, String set, int offset) throws RepositoryException {
 
+        final HttpIdentifierTranslator translator =
+                new HttpIdentifierTranslator(session, FedoraNodes.class, uriInfo);
         if (metadataPrefix == null) {
             return error(VerbType.LIST_IDENTIFIERS, null, null, OAIPMHerrorcodeType.BAD_ARGUMENT, "metadataprefix is invalid");
         }
@@ -380,7 +377,7 @@ public class OAIProviderService {
                 .append(" OFFSET ").append(offset)
                 .append(" LIMIT ").append(maxListSize);
         try {
-            final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql.toString());
+            final JQLConverter jql = new JQLConverter(session, translator, sparql.toString());
             final ResultSet result = jql.execute();
             final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
             final ListIdentifiersType ids = oaiFactory.createListIdentifiersType();
@@ -393,20 +390,20 @@ public class OAIProviderService {
                 final QuerySolution sol = result.next();
                 final Resource sub = sol.get("sub").asResource();
                 final Resource oaiRecordUri = sol.get("obj").asResource();
-                if (!this.datastreamService.exists(session, subjectTranslator.getPathFromSubject(oaiRecordUri))) {
+                if (!this.datastreamService.exists(session, translator.getPathFromSubject(oaiRecordUri))) {
                     continue;
                 }
                 h.setIdentifier(sub.getURI());
                 final FedoraObject obj =
-                        this.objectService.getObject(session, subjectTranslator.getPathFromSubject(sub));
+                        this.objectService.getObject(session, translator.getPathFromSubject(sub));
                 h.setDatestamp(dateFormat.print(obj.getLastModifiedDate().getTime()));
                 // get set names this object is part of
-                final Model objModel = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
-                final StmtIterator setNames = objModel.listStatements(subjectTranslator.getSubject(obj.getPath()), objModel.createProperty(propertyIsPartOfSet), (RDFNode) null);
+                final Model objModel = obj.getPropertiesDataset(translator).getDefaultModel();
+                final StmtIterator setNames = objModel.listStatements(translator.getSubject(obj.getPath()), objModel.createProperty(propertyIsPartOfSet), (RDFNode) null);
                 while (setNames.hasNext()) {
                     final FedoraObject setObject = this.objectService.getObject(session, setsRootPath + "/" + setNames.next().getObject().asLiteral().getString());
-                    final Model setObjectModel = setObject.getPropertiesDataset(subjectTranslator).getDefaultModel();
-                    final StmtIterator setSpec = setObjectModel.listStatements(subjectTranslator.getSubject(setObject.getPath()), objModel.createProperty(propertyHasSetSpec), (RDFNode) null);
+                    final Model setObjectModel = setObject.getPropertiesDataset(translator).getDefaultModel();
+                    final StmtIterator setSpec = setObjectModel.listStatements(translator.getSubject(setObject.getPath()), objModel.createProperty(propertyHasSetSpec), (RDFNode) null);
                     if (setSpec.hasNext()) {
                         h.getSetSpec().add(setSpec.next().getObject().asLiteral().getString());
                     }
@@ -472,15 +469,17 @@ public class OAIProviderService {
         return new ResumptionToken(verb, metadataPrefix, from, until, offset, set);
     }
 
-    public JAXBElement<OAIPMHtype> listSets(Session session, int offset) throws RepositoryException {
+    public JAXBElement<OAIPMHtype> listSets(Session session, UriInfo uriInfo, int offset) throws RepositoryException {
+        final HttpIdentifierTranslator translator =
+                new HttpIdentifierTranslator(session, FedoraNodes.class, uriInfo);
         try {
             if (!setsEnabled) {
                 return error(VerbType.LIST_SETS, null, null, OAIPMHerrorcodeType.NO_SET_HIERARCHY, "Set are not enabled");
             }
             final StringBuilder sparql = new StringBuilder("SELECT ?obj WHERE {")
-                    .append("<").append(subjectTranslator.getSubject(setsRootPath)).append(">")
+                    .append("<").append(translator.getSubject(setsRootPath)).append(">")
                     .append("<").append(propertyHasSets).append("> ?obj }");
-            final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql.toString());
+            final JQLConverter jql = new JQLConverter(session, translator, sparql.toString());
             final ResultSet result = jql.execute();
             final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
             final ListSetsType sets = oaiFactory.createListSetsType();
@@ -494,7 +493,7 @@ public class OAIProviderService {
                         .append("<").append(propertyHasSetSpec).append("> ")
                         .append("?spec . ")
                         .append("}");
-                final JQLConverter setJql = new JQLConverter(session, subjectTranslator, sparql.toString());
+                final JQLConverter setJql = new JQLConverter(session, translator, sparql.toString());
                 final ResultSet setResult = setJql.execute();
                 while (setResult.hasNext()) {
                     final SetType set = oaiFactory.createSetType();
@@ -512,7 +511,9 @@ public class OAIProviderService {
         }
     }
 
-    public String createSet(Session session, InputStream src) throws RepositoryException {
+    public String createSet(Session session, UriInfo uriInfo, InputStream src) throws RepositoryException {
+        final HttpIdentifierTranslator translator =
+                new HttpIdentifierTranslator(session, FedoraNodes.class, uriInfo);
         try {
             final SetType set = this.unmarshaller.unmarshal(new StreamSource(src), SetType.class).getValue();
             final String setId = getSetId(set);
@@ -524,21 +525,21 @@ public class OAIProviderService {
             final FedoraObject setObject = this.objectService.createObject(session, setsRootPath + "/" + setId);
 
             StringBuilder sparql =
-                    new StringBuilder("INSERT DATA {<" + subjectTranslator.getSubject(setRoot.getPath()) + "> <" +
-                            propertyHasSets + "> <" + subjectTranslator.getSubject(setObject.getPath()) + ">}");
-            setRoot.updatePropertiesDataset(subjectTranslator, sparql.toString());
+                    new StringBuilder("INSERT DATA {<" + translator.getSubject(setRoot.getPath()) + "> <" +
+                            propertyHasSets + "> <" + translator.getSubject(setObject.getPath()) + ">}");
+            setRoot.updatePropertiesDataset(translator, sparql.toString());
 
             sparql.setLength(0);
             sparql.append("INSERT DATA {")
-                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + propertySetName +
+                    .append("<" + translator.getSubject(setObject.getPath()) + "> <" + propertySetName +
                             "> '" + set.getSetName() + "' .")
-                    .append("<" + subjectTranslator.getSubject(setObject.getPath()) + "> <" + propertyHasSetSpec +
+                    .append("<" + translator.getSubject(setObject.getPath()) + "> <" + propertyHasSetSpec +
                             "> '" + set.getSetName() + "' .");
             for (DescriptionType desc : set.getSetDescription()) {
                 // TODO: save description
             }
             sparql.append("}");
-            setObject.updatePropertiesDataset(subjectTranslator, sparql.toString());
+            setObject.updatePropertiesDataset(translator, sparql.toString());
             session.save();
             return setObject.getPath();
         } catch (JAXBException e) {
@@ -560,6 +561,9 @@ public class OAIProviderService {
     }
 
     public JAXBElement<OAIPMHtype> listRecords(Session session, UriInfo uriInfo, String metadataPrefix, String from, String until, String set, int offset) throws RepositoryException {
+
+        final HttpIdentifierTranslator translator =
+                new HttpIdentifierTranslator(session, FedoraNodes.class, uriInfo);
 
         if (metadataPrefix == null) {
             return error(VerbType.LIST_RECORDS, null, null, OAIPMHerrorcodeType.BAD_ARGUMENT, "metadataprefix is invalid");
@@ -614,7 +618,7 @@ public class OAIProviderService {
                 .append(" OFFSET ").append(offset)
                 .append(" LIMIT ").append(maxListSize);
         try {
-            final JQLConverter jql = new JQLConverter(session, subjectTranslator, sparql.toString());
+            final JQLConverter jql = new JQLConverter(session, translator, sparql.toString());
             final ResultSet result = jql.execute();
             final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
             final ListRecordsType records = oaiFactory.createListRecordsType();
@@ -629,27 +633,27 @@ public class OAIProviderService {
                 final QuerySolution solution = result.next();
                 final Resource subjectUri = solution.get("sub").asResource();
                 final Resource oaiRecordUri = solution.get("obj").asResource();
-                if (!this.datastreamService.exists(session, subjectTranslator.getPathFromSubject(oaiRecordUri))) {
+                if (!this.datastreamService.exists(session, translator.getPathFromSubject(oaiRecordUri))) {
                     continue;
                 }
                 h.setIdentifier(subjectUri.getURI());
                 final FedoraObject obj =
-                        this.objectService.getObject(session, subjectTranslator.getPathFromSubject(subjectUri));
+                        this.objectService.getObject(session, translator.getPathFromSubject(subjectUri));
                 h.setDatestamp(dateFormat.print(obj.getLastModifiedDate().getTime()));
                 // get set names this object is part of
-                final Model objModel = obj.getPropertiesDataset(subjectTranslator).getDefaultModel();
-                final StmtIterator setNames = objModel.listStatements(subjectTranslator.getSubject(obj.getPath()), objModel.createProperty(propertyIsPartOfSet), (RDFNode) null);
+                final Model objModel = obj.getPropertiesDataset(translator).getDefaultModel();
+                final StmtIterator setNames = objModel.listStatements(translator.getSubject(obj.getPath()), objModel.createProperty(propertyIsPartOfSet), (RDFNode) null);
                 while (setNames.hasNext()) {
                     final FedoraObject setObject = this.objectService.getObject(session, setsRootPath + "/" + setNames.next().getObject().asLiteral().getString());
-                    final Model setObjectModel = setObject.getPropertiesDataset(subjectTranslator).getDefaultModel();
-                    final StmtIterator setSpec = setObjectModel.listStatements(subjectTranslator.getSubject(setObject.getPath()), objModel.createProperty(propertyHasSetSpec), (RDFNode) null);
+                    final Model setObjectModel = setObject.getPropertiesDataset(translator).getDefaultModel();
+                    final StmtIterator setSpec = setObjectModel.listStatements(translator.getSubject(setObject.getPath()), objModel.createProperty(propertyHasSetSpec), (RDFNode) null);
                     if (setSpec.hasNext()) {
                         h.getSetSpec().add(setSpec.next().getObject().asLiteral().getString());
                     }
                 }
                 // get the metadata record from fcrepo
                 final MetadataType md = oaiFactory.createMetadataType();
-                final Datastream mdDs = this.datastreamService.getDatastream(session, subjectTranslator.getPathFromSubject(oaiRecordUri));
+                final Datastream mdDs = this.datastreamService.getDatastream(session, translator.getPathFromSubject(oaiRecordUri));
                 try {
                     String content = IOUtils.toString(mdDs.getContent());
                     md.setAny(new JAXBElement<String>(new QName(mdf.getPrefix()), String.class, content));
