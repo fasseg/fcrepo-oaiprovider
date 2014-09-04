@@ -32,7 +32,7 @@ Installation
 <param-value>WEB-INF/classes/spring/master.xml WEB-INF/classes/spring/oaiprovider.xml</param-value>
 ```
 
-Usage
+Links
 -----
 
 The provider depends on links to Datastreams and OAI Set objects to generate OAI responses
