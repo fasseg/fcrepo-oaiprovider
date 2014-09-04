@@ -57,7 +57,7 @@ A graph linking a Fedora Object to it's OAI DC Datastream should look like this:
 Additional Metadata record types
 --------------------------------
 
-The oaiprovider supports oai_dc out if the box, but users are able to add their own metadata format definitions to oaiprovider.xml.
+The oaiprovider supports `oai_dc` out if the box, but users are able to add their own metadata format definitions to oaiprovider.xml.
 
 Example
 -------
