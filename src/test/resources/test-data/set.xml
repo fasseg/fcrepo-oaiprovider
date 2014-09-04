@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<set xmlns:ns2="http://www.openarchives.org/OAI/2.0/">
+    <ns2:setSpec>MyOAISet</ns2:setSpec>
+    <ns2:setName>MyOAISet</ns2:setName>
+</set>
