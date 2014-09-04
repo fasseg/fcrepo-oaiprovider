@@ -178,19 +178,23 @@ public class OAIProviderService {
                 new HttpIdentifierTranslator(session, FedoraNodes.class, uriInfo);
         final ListMetadataFormatsType listMetadataFormats = oaiFactory.createListMetadataFormatsType();
         if (identifier != null && !identifier.isEmpty()) {
-            /* generate metadata format response for a single pid */
-            if (!this.objectService.exists(session, "/" + identifier)) {
-                return error(VerbType.LIST_METADATA_FORMATS, identifier, null, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST,
-                        "The object does not exist");
-            }
-            final FedoraObject obj = this.objectService.getObject(session, "/" + identifier);
-            final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
-            for (MetadataFormat mdf : metadataFormats.values()) {
-                if (model.listObjectsOfProperty(rdfModel.createProperty(mdf.getPropertyName())).hasNext()) {
-                    listMetadataFormats.getMetadataFormat().add(mdf.asMetadataFormatType());
-                } else {
-                    return error(VerbType.LIST_METADATA_FORMATS, identifier, null,
-                            OAIPMHerrorcodeType.NO_METADATA_FORMATS, "No metadata available");
+            final Resource subject = translator.getSubject("/" + identifier);
+            final String path = translator.getPathFromSubject(subject);
+            if (path != null && !path.isEmpty()) {
+                /* generate metadata format response for a single pid */
+                if (!this.objectService.exists(session, path)) {
+                    return error(VerbType.LIST_METADATA_FORMATS, identifier, null, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST,
+                            "The object does not exist");
+                }
+                final FedoraObject obj = this.objectService.getObject(session, "/" + identifier);
+                final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
+                for (MetadataFormat mdf : metadataFormats.values()) {
+                    if (model.listObjectsOfProperty(rdfModel.createProperty(mdf.getPropertyName())).hasNext()) {
+                        listMetadataFormats.getMetadataFormat().add(mdf.asMetadataFormatType());
+                    } else {
+                        return error(VerbType.LIST_METADATA_FORMATS, identifier, null,
+                                OAIPMHerrorcodeType.NO_METADATA_FORMATS, "No metadata available");
+                    }
                 }
             }
         } else {
@@ -231,21 +235,21 @@ public class OAIProviderService {
 
     public JAXBElement<OAIPMHtype> getRecord(final Session session, final UriInfo uriInfo, final String identifier,
             final String metadataPrefix) throws RepositoryException {
-        final HttpIdentifierTranslator translator = new HttpIdentifierTranslator(session, OAIWebResource.class, uriInfo);
+        final HttpIdentifierTranslator translator = new HttpIdentifierTranslator(session, FedoraNodes.class, uriInfo);
         final MetadataFormat format = metadataFormats.get(metadataPrefix);
         if (format == null) {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix,
                     OAIPMHerrorcodeType.CANNOT_DISSEMINATE_FORMAT, "The metadata format is not available");
         }
-
-        final String path = "/" + identifier;
-        if (path == null || !this.objectService.exists(session, path)) {
+        final Resource subject = translator.getSubject("/" + identifier);
+        final String path = translator.getPathFromSubject(subject);
+        if (!this.objectService.exists(session, path)) {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST,
                     "The requested identifier does not exist");
         }
         final FedoraObject obj = this.objectService.getObject(session, path);
         final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
-        final StmtIterator it = model.listStatements(translator.getSubject("/" + identifier),
+        final StmtIterator it = model.listStatements(subject,
                 model.createProperty(format.getPropertyName()),
                 (RDFNode) null);
         if (!it.hasNext()) {

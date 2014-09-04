@@ -65,7 +65,8 @@ public class ListMetadataFormatsIT extends AbstractOAIProviderIT {
     @Test
     public void testListObjectMetadataTypes() throws Exception {
         String pid = "oai-test-" + RandomStringUtils.randomAlphabetic(8);
-        createFedoraObjectWithOaiRecord("oai-test-" + RandomStringUtils.randomAlphabetic(16), pid, null, this
+        String oaiDcId = "oai-dc-" + RandomStringUtils.randomAlphabetic(8);
+        createFedoraObjectWithOaiRecord(pid, oaiDcId, null, this
                 .getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
 
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_METADATA_FORMATS.value(), pid, null, null, null, null);
