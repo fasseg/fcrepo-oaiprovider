@@ -62,6 +62,8 @@ The oaiprovider supports oai_dc out if the box, but users are able to add their 
 Example
 -------
 
+Create a Fedora Object `MyObject` and add an OAI DC Datastream `MyOAIDCDatastream` which is contained in the OAI Set `MyOAISet` 
+
 1.Create a new Datastream containing an XML representation of an oai_dc record:
 
 ```bash
