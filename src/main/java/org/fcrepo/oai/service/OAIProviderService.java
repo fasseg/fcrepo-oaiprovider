@@ -392,6 +392,10 @@ public class OAIProviderService {
                 final HeaderType h = oaiFactory.createHeaderType();
                 final QuerySolution sol = result.next();
                 final Resource sub = sol.get("sub").asResource();
+                final Resource oaiRecordUri = sol.get("obj").asResource();
+                if (!this.datastreamService.exists(session, subjectTranslator.getPathFromSubject(oaiRecordUri))) {
+                    continue;
+                }
                 h.setIdentifier(sub.getURI());
                 final FedoraObject obj =
                         this.objectService.getObject(session, subjectTranslator.getPathFromSubject(sub));

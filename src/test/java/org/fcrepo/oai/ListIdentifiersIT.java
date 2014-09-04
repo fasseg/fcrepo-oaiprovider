@@ -17,14 +17,15 @@
 package org.fcrepo.oai;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotNull;
 
 import javax.xml.bind.JAXBElement;
 
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.junit.Test;
-import org.openarchives.oai._2.*;
+import org.openarchives.oai._2.OAIPMHerrorcodeType;
+import org.openarchives.oai._2.OAIPMHtype;
+import org.openarchives.oai._2.VerbType;
 
 public class ListIdentifiersIT extends AbstractOAIProviderIT {
 
@@ -59,8 +60,9 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecords() throws Exception {
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
-                RandomStringUtils.randomAlphabetic(16), null);
+        String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
+        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
+        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
 
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null, null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
@@ -77,9 +79,10 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecordsResumption() throws Exception {
-        for (int i=0; i < 6; i++) {
-            createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
-                    RandomStringUtils.randomAlphabetic(16), null);
+        for (int i = 0; i < 6; i++) {
+            String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
+            createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
+            createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
         }
 
         HttpResponse resp = getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null, null);
@@ -110,11 +113,13 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecordsFrom() throws Exception {
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
-                RandomStringUtils.randomAlphabetic(16), null);
+        String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
+        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
+        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
 
         HttpResponse resp =
-                getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", "2012-12-13T01:00:00Z", null, null);
+                getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", "2012-12-13T01:00:00Z", null,
+                        null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oaipmh =
                 ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
@@ -129,11 +134,13 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @Test
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecordsUntilNoRecords() throws Exception {
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
-                RandomStringUtils.randomAlphabetic(16), null);
+        String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
+        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
+        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), oaiId, null);
 
         HttpResponse resp =
-                getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, "2012-12-13T01:00:00Z", null);
+                getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, "2012-12-13T01:00:00Z",
+                        null);
         assertEquals(200, resp.getStatusLine().getStatusCode());
         OAIPMHtype oaipmh =
                 ((JAXBElement<OAIPMHtype>) this.unmarshaller.unmarshal(resp.getEntity().getContent())).getValue();
@@ -145,9 +152,10 @@ public class ListIdentifiersIT extends AbstractOAIProviderIT {
     @SuppressWarnings("unchecked")
     public void testListIdentifyRecordsFromSet() throws Exception {
         final String setName = "oai-test-set-" + RandomStringUtils.randomAlphabetic(16);
+        String oaiId = "oai-test-dc-" + RandomStringUtils.randomAlphabetic(16);
         createSet(setName, null);
-        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16), "oai-dc-" +
-                RandomStringUtils.randomAlphabetic(16), setName);
+        createOaiDcObject(oaiId, this.getClass().getClassLoader().getResourceAsStream("test-data/oaidc.xml"));
+        createFedoraObject("oai-test-" + RandomStringUtils.randomAlphabetic(16),oaiId, setName);
 
         HttpResponse resp =
                 getOAIPMHResponse(VerbType.LIST_IDENTIFIERS.value(), null, "oai_dc", null, null, setName);
