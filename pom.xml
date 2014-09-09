@@ -118,6 +118,13 @@
                         <phase>none</phase>
                     </execution>
                 </executions>
+                <dependencies>
+                  <dependency>
+                    <groupId>org.fcrepo</groupId>
+                    <artifactId>fcrepo-build-tools</artifactId>
+                    <version>${fcrepo.version}</version>
+                  </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
