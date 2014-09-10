@@ -19,17 +19,25 @@ Installation
 #> cp target/fcrepo-oaiprovider-{VERSION}.jar /path/to/webapp/WEB-INF/lib/
 ```
 
-3.Edit Fedora's web.xml
+3.Edit Fedora's web.xml (or classes/spring/master.xml)
   
 ```bash
 #> vim /path/to/webapp/WEB-INF/web.xml
 ```
+or
+```bash
+#> vim /path/to/webapp/WEB-INF/classes/spring/master.xml
+```
 
-4.Add oaiprovider.xml context configuration. Simply adding oaiprovider.xml to Fedora's master.xml does not work it seems
+4.Add oaiprovider.xml context configuration in the web.xml
 
 ```xml
 <param-name>contextConfigLocation</param-name>
-<param-value>WEB-INF/classes/spring/master.xml WEB-INF/classes/spring/oaiprovider.xml</param-value>
+<param-value>WEB-INF/classes/spring/master.xml, classpath:oaiprovider.xml</param-value>
+```
+or, in master.xml
+```xml
+<import resource="classpath:oaiprovider.xml"/>
 ```
 
 Technoblabber
