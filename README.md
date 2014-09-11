@@ -40,6 +40,8 @@ or, in master.xml
 <import resource="classpath:oaiprovider.xml"/>
 ```
 
+5.Restart Tomcat/Jetty, if necessary
+
 Technoblabber
 -------------
 The OAI Provider exposes an endpoint at `/oai` which accepts OAI conforming HTTP requests.
