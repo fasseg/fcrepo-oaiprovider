@@ -20,7 +20,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import javax.xml.bind.JAXBElement;
+import javax.xml.namespace.QName;
 
+import com.sun.xml.bind.marshaller.CharacterEscapeHandler;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.junit.Test;
@@ -66,5 +68,8 @@ public class GetRecordIT extends AbstractOAIProviderIT {
         assertEquals(0, oai.getError().size());
         assertNotNull(oai.getGetRecord().getRecord().getMetadata().getAny());
         assertEquals(objId, oai.getGetRecord().getRecord().getHeader().getIdentifier());
+        this.marshaller.setProperty(javax.xml.bind.Marshaller.JAXB_ENCODING, "utf-8");
+        this.marshaller.setProperty("com.sun.xml.bind.characterEscapeHandler", NOOPEscapeHandler.getInstance());
+        this.marshaller.marshal(new JAXBElement<OAIPMHtype>(new QName("http://www.openarchives.org/OAI/2.0/oai_dc/", "oai_dc"), OAIPMHtype.class, oai), System.out);
     }
 }

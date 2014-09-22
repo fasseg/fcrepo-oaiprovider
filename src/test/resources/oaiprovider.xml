@@ -3,6 +3,7 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
     <bean name="oaiProviderService" class="org.fcrepo.oai.service.OAIProviderService">
+        <property name="autoGenerateOaiDc" value="true" />
         <property name="identifyPath" value="/oai/identify"/>
         <property name="maxListSize" value="5" />
         <property name="setsEnabled" value="true" />

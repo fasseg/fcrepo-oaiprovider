@@ -39,6 +39,7 @@ import javax.xml.transform.stream.StreamSource;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.fcrepo.generator.dublincore.JcrPropertiesGenerator;
 import org.fcrepo.http.api.FedoraNodes;
 import org.fcrepo.http.commons.api.rdf.HttpIdentifierTranslator;
 import org.fcrepo.http.commons.session.SessionFactory;
@@ -89,11 +90,16 @@ public class OAIProviderService {
 
     private boolean setsEnabled;
 
+    private boolean autoGenerateOaiDc;
+
     private Map<String, MetadataFormat> metadataFormats;
 
     private DateTimeFormatter dateFormat = ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
 
     private int maxListSize;
+
+    @Autowired
+    private JcrPropertiesGenerator generator;
 
     @Autowired
     private DatastreamService datastreamService;
@@ -137,6 +143,14 @@ public class OAIProviderService {
 
     public void setIdentifyPath(String identifyPath) {
         this.identifyPath = identifyPath;
+    }
+
+    public void setAutoGenerateOaiDc(boolean autoGenerateOaiDc) {
+        this.autoGenerateOaiDc = autoGenerateOaiDc;
+    }
+
+    public void setGenerator(JcrPropertiesGenerator generator) {
+        this.generator = generator;
     }
 
     @PostConstruct
@@ -248,6 +262,7 @@ public class OAIProviderService {
                     "The requested identifier does not exist");
         }
         final FedoraObject obj = this.objectService.getObject(session, path);
+
         final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
         final StmtIterator it = model.listStatements(subject,
                 model.createProperty(format.getPropertyName()),
@@ -288,7 +303,12 @@ public class OAIProviderService {
 
         final MetadataType md = oaiFactory.createMetadataType();
         try {
-            String content = IOUtils.toString(mdDs.getContent());
+            String content;
+            if (metadataPrefix.equals("oai_dc") && autoGenerateOaiDc) {
+                content = IOUtils.toString(generator.getStream(obj.getNode()));
+            }else {
+                content = IOUtils.toString(mdDs.getContent());
+            }
             md.setAny(new JAXBElement<String>(new QName(format.getPrefix()), String.class, content));
         } catch (IOException e) {
             throw new RepositoryException(e);
