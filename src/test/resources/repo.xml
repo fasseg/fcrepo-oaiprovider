@@ -15,11 +15,13 @@
   <bean name="modeshapeRepofactory" class="org.fcrepo.kernel.impl.spring.ModeShapeRepositoryFactoryBean"
     depends-on="authenticationProvider" p:repositoryConfiguration="${fcrepo.modeshape.configuration:repository.json}"/>
 
-    <bean name="authenticationProvider" class="org.fcrepo.auth.common.BypassSecurityServletAuthenticationProvider" />
-  
+  <bean name="authenticationProvider" class="org.fcrepo.auth.common.BypassSecurityServletAuthenticationProvider" />
 
-  <bean class="org.modeshape.jcr.JcrRepositoryFactory" />
+
+  <bean class="org.modeshape.jcr.ModeShapeEngine" init-method="start"/>
 
   <bean id="connectionManager" class="org.apache.http.impl.conn.PoolingHttpClientConnectionManager" />
+
+  <bean id="oaidcGenerator" class="org.fcrepo.generator.dublincore.JcrPropertiesGenerator"/>
 
 </beans>
