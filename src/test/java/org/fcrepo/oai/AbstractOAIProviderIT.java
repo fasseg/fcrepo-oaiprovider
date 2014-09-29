@@ -68,10 +68,12 @@ public abstract class AbstractOAIProviderIT {
             id.setRepositoryName("Fedora 4 Test Instance");
             id.setBaseURL(serverAddress);
 
-            HttpPost post = new HttpPost(serverAddress + "/oai/identify/fcr:content");
+            HttpPost post = new HttpPost(serverAddress);
             StringWriter data = new StringWriter();
             marshaller.marshal(new JAXBElement<IdentifyType>(new QName("Identify"), IdentifyType.class, id), data);
             post.setEntity(new StringEntity(data.toString()));
+            post.addHeader("Content-Type","application/octet-stream");
+            post.addHeader("Slug", "oai_identify");
             try {
                 HttpResponse resp = this.client.execute(post);
                 assertEquals(201, resp.getStatusLine().getStatusCode());
@@ -82,7 +84,7 @@ public abstract class AbstractOAIProviderIT {
     }
 
     protected boolean defaultIdentityResponseExists() throws IOException {
-        HttpGet get = new HttpGet(serverAddress + "/oai/identify/fcr:content");
+        HttpGet get = new HttpGet(serverAddress + "/oai_identify/fcr:content");
         try {
             HttpResponse resp = this.client.execute(get);
             return resp.getStatusLine().getStatusCode() == 200;
