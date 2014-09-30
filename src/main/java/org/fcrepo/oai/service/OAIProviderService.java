@@ -158,7 +158,7 @@ public class OAIProviderService {
         /* check if set root node exists */
         Session session = sessionFactory.getInternalSession();
         if (!this.objectService.exists(session, setsRootPath)) {
-            this.objectService.createObject(session, setsRootPath);
+            this.objectService.findOrCreateObject(session, setsRootPath);
         }
         session.save();
     }
@@ -171,8 +171,11 @@ public class OAIProviderService {
 
     public JAXBElement<OAIPMHtype> identify(final Session session, UriInfo uriInfo) throws RepositoryException,
             JAXBException {
-        final Datastream ds = this.datastreamService.getDatastream(session, identifyPath);
-        final InputStream data = ds.getContent();
+        if (!this.datastreamService.exists(session, identifyPath)) {
+            return error(VerbType.IDENTIFY, null, null, OAIPMHerrorcodeType.BAD_ARGUMENT, "Identify response does not exists");
+        }
+        final Datastream ds = this.datastreamService.findOrCreateDatastream(session, identifyPath);
+        final InputStream data = ds.getBinary().getContent();
         final IdentifyType id = this.unmarshaller.unmarshal(new StreamSource(data), IdentifyType.class).getValue();
 
         final RequestType req = oaiFactory.createRequestType();
@@ -200,7 +203,7 @@ public class OAIProviderService {
                     return error(VerbType.LIST_METADATA_FORMATS, identifier, null, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST,
                             "The object does not exist");
                 }
-                final FedoraObject obj = this.objectService.getObject(session, "/" + identifier);
+                final FedoraObject obj = this.objectService.findOrCreateObject(session, "/" + identifier);
                 final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
                 for (MetadataFormat mdf : metadataFormats.values()) {
                     if (model.listObjectsOfProperty(rdfModel.createProperty(mdf.getPropertyName())).hasNext()) {
@@ -261,7 +264,8 @@ public class OAIProviderService {
             return error(VerbType.GET_RECORD, identifier, metadataPrefix, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST,
                     "The requested identifier does not exist");
         }
-        final FedoraObject obj = this.objectService.getObject(session, path);
+
+        final FedoraObject obj = this.objectService.findOrCreateObject(session, path);
 
         final Model model = obj.getPropertiesDataset(translator).getDefaultModel();
         final StmtIterator it = model.listStatements(subject,
@@ -279,7 +283,7 @@ public class OAIProviderService {
         }
 
         final Datastream mdDs =
-                this.datastreamService.getDatastream(session, dsPath);
+                this.datastreamService.findOrCreateDatastream(session, dsPath);
         final OAIPMHtype oai = oaiFactory.createOAIPMHtype();
         final RequestType req = oaiFactory.createRequestType();
         req.setVerb(VerbType.GET_RECORD);
@@ -307,13 +311,13 @@ public class OAIProviderService {
             if (metadataPrefix.equals("oai_dc") && autoGenerateOaiDc) {
                 content = IOUtils.toString(generator.getStream(obj.getNode()));
             }else {
-                content = IOUtils.toString(mdDs.getContent());
+                content = IOUtils.toString(mdDs.getBinary().getContent());
             }
             md.setAny(new JAXBElement<String>(new QName(format.getPrefix()), String.class, content));
         } catch (IOException e) {
             throw new RepositoryException(e);
         } finally {
-            IOUtils.closeQuietly(mdDs.getContent());
+            IOUtils.closeQuietly(mdDs.getBinary().getContent());
         }
         record.setMetadata(md);
 
@@ -419,13 +423,17 @@ public class OAIProviderService {
                 }
                 h.setIdentifier(sub.getURI());
                 final FedoraObject obj =
-                        this.objectService.getObject(session, translator.getPathFromSubject(sub));
+                        this.objectService.findOrCreateObject(session, translator.getPathFromSubject(sub));
                 h.setDatestamp(dateFormat.print(obj.getLastModifiedDate().getTime()));
                 // get set names this object is part of
                 final Model objModel = obj.getPropertiesDataset(translator).getDefaultModel();
                 final StmtIterator setNames = objModel.listStatements(translator.getSubject(obj.getPath()), objModel.createProperty(propertyIsPartOfSet), (RDFNode) null);
                 while (setNames.hasNext()) {
-                    final FedoraObject setObject = this.objectService.getObject(session, setsRootPath + "/" + setNames.next().getObject().asLiteral().getString());
+                    String setName = setNames.next().getObject().asLiteral().getString();
+                    if (!this.objectService.exists(session, setsRootPath + "/" + setName)) {
+                        return error(VerbType.LIST_IDENTIFIERS, null, metadataPrefix, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST, "The Set object does not exist");
+                    }
+                    final FedoraObject setObject = this.objectService.findOrCreateObject(session, setsRootPath + "/" + setName);
                     final Model setObjectModel = setObject.getPropertiesDataset(translator).getDefaultModel();
                     final StmtIterator setSpec = setObjectModel.listStatements(translator.getSubject(setObject.getPath()), objModel.createProperty(propertyHasSetSpec), (RDFNode) null);
                     if (setSpec.hasNext()) {
@@ -541,12 +549,18 @@ public class OAIProviderService {
         try {
             final SetType set = this.unmarshaller.unmarshal(new StreamSource(src), SetType.class).getValue();
             final String setId = getSetId(set);
-            final FedoraObject setRoot = this.objectService.getObject(session, setsRootPath);
+            if (!this.objectService.exists(session, setsRootPath)) {
+                throw new RepositoryException("The root set object does not exist");
+            }
+            final FedoraObject setRoot = this.objectService.findOrCreateObject(session, setsRootPath);
             if (set.getSetSpec() != null) {
                 /* validate that the hierarchy of sets exists */
             }
 
-            final FedoraObject setObject = this.objectService.createObject(session, setsRootPath + "/" + setId);
+            if (!this.objectService.exists(session, setsRootPath + "/" + setId)) {
+                throw new RepositoryException("The OAI Set with the id " + setId + " could not be found");
+            }
+            final FedoraObject setObject = this.objectService.findOrCreateObject(session, setsRootPath + "/" + setId);
 
             StringBuilder sparql =
                     new StringBuilder("INSERT DATA {<" + translator.getSubject(setRoot.getPath()) + "> <" +
@@ -661,14 +675,21 @@ public class OAIProviderService {
                     continue;
                 }
                 h.setIdentifier(subjectUri.getURI());
+                if (this.objectService.exists(session, translator.getPathFromSubject(subjectUri))) {
+                    return error(VerbType.LIST_RECORDS, null,  metadataPrefix, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST, "The object " + subjectUri + " does not exist");
+                }
                 final FedoraObject obj =
-                        this.objectService.getObject(session, translator.getPathFromSubject(subjectUri));
+                        this.objectService.findOrCreateObject(session, translator.getPathFromSubject(subjectUri));
                 h.setDatestamp(dateFormat.print(obj.getLastModifiedDate().getTime()));
                 // get set names this object is part of
                 final Model objModel = obj.getPropertiesDataset(translator).getDefaultModel();
                 final StmtIterator setNames = objModel.listStatements(translator.getSubject(obj.getPath()), objModel.createProperty(propertyIsPartOfSet), (RDFNode) null);
                 while (setNames.hasNext()) {
-                    final FedoraObject setObject = this.objectService.getObject(session, setsRootPath + "/" + setNames.next().getObject().asLiteral().getString());
+                    String setName = setNames.next().getObject().asLiteral().getString();
+                    if (!this.objectService.exists(session, setsRootPath + "/" + setName)) {
+                        return error(VerbType.LIST_RECORDS, null, metadataPrefix, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST, "The OAI Set with name " + setName + " does not exist");
+                    }
+                    final FedoraObject setObject = this.objectService.findOrCreateObject(session, setsRootPath + "/" + setName);
                     final Model setObjectModel = setObject.getPropertiesDataset(translator).getDefaultModel();
                     final StmtIterator setSpec = setObjectModel.listStatements(translator.getSubject(setObject.getPath()), objModel.createProperty(propertyHasSetSpec), (RDFNode) null);
                     if (setSpec.hasNext()) {
@@ -677,14 +698,17 @@ public class OAIProviderService {
                 }
                 // get the metadata record from fcrepo
                 final MetadataType md = oaiFactory.createMetadataType();
-                final Datastream mdDs = this.datastreamService.getDatastream(session, translator.getPathFromSubject(oaiRecordUri));
+                if (!this.datastreamService.exists(session, translator.getPathFromSubject(oaiRecordUri))) {
+                     return error(VerbType.LIST_RECORDS, null, metadataPrefix, OAIPMHerrorcodeType.ID_DOES_NOT_EXIST, "The OAI record does not exist");
+                }
+                final Datastream mdDs = this.datastreamService.findOrCreateDatastream(session, translator.getPathFromSubject(oaiRecordUri));
                 try {
-                    String content = IOUtils.toString(mdDs.getContent());
+                    String content = IOUtils.toString(mdDs.getBinary().getContent());
                     md.setAny(new JAXBElement<String>(new QName(mdf.getPrefix()), String.class, content));
                 } catch (IOException e) {
                     throw new RepositoryException(e);
                 } finally {
-                    IOUtils.closeQuietly(mdDs.getContent());
+                    IOUtils.closeQuietly(mdDs.getBinary().getContent());
                 }
                 record.setMetadata(md);
                 record.setHeader(h);
